@@ -17,6 +17,7 @@ package state
 import (
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/pkg/cast"
 	"log"
 	"os"
@@ -153,6 +154,10 @@ func TestLifecycle(t *testing.T) {
 	)
 	func() {
 		cleanStateData()
+		err := store.SetupDefault()
+		if err != nil {
+			t.Error(err)
+		}
 		store, err := getKVStore(ruleId)
 		if err != nil {
 			t.Errorf("Get store for rule %s error: %s", ruleId, err)

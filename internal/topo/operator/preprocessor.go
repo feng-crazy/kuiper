@@ -31,11 +31,11 @@ type Preprocessor struct {
 	timestampField string
 }
 
-func NewPreprocessor(fields []interface{}, allMeta bool, metaFields []string, iet bool, timestampField string, timestampFormat string, isBinary bool) (*Preprocessor, error) {
+func NewPreprocessor(fields []interface{}, allMeta bool, metaFields []string, iet bool, timestampField string, timestampFormat string, isBinary bool, strictValidation bool) (*Preprocessor, error) {
 	p := &Preprocessor{
 		allMeta: allMeta, metaFields: metaFields, isEventTime: iet, timestampField: timestampField}
 	p.defaultFieldProcessor = defaultFieldProcessor{
-		streamFields: fields, isBinary: isBinary, timestampFormat: timestampFormat,
+		streamFields: fields, isBinary: isBinary, timestampFormat: timestampFormat, strictValidation: strictValidation,
 	}
 	return p, nil
 }
@@ -44,7 +44,7 @@ func NewPreprocessor(fields []interface{}, allMeta bool, metaFields []string, ie
  *	input: *xsql.Tuple
  *	output: *xsql.Tuple
  */
-func (p *Preprocessor) Apply(ctx api.StreamContext, data interface{}, fv *xsql.FunctionValuer, _ *xsql.AggregateFunctionValuer) interface{} {
+func (p *Preprocessor) Apply(ctx api.StreamContext, data interface{}, _ *xsql.FunctionValuer, _ *xsql.AggregateFunctionValuer) interface{} {
 	log := ctx.GetLogger()
 	tuple, ok := data.(*xsql.Tuple)
 	if !ok {
@@ -53,7 +53,7 @@ func (p *Preprocessor) Apply(ctx api.StreamContext, data interface{}, fv *xsql.F
 
 	log.Debugf("preprocessor receive %s", tuple.Message)
 
-	result, err := p.processField(tuple, fv)
+	result, err := p.processField(tuple, nil)
 	if err != nil {
 		return fmt.Errorf("error in preprocessor: %s", err)
 	}

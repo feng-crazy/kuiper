@@ -15,7 +15,6 @@
 package operator
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/lf-edge/ekuiper/pkg/api"
@@ -93,11 +92,7 @@ func (pp *ProjectOp) Apply(ctx api.StreamContext, data interface{}, fv *xsql.Fun
 		return fmt.Errorf("run Select error: invalid input %[1]T(%[1]v)", input)
 	}
 
-	if ret, err := json.Marshal(results); err == nil {
-		return ret
-	} else {
-		return fmt.Errorf("run Select error: %v", err)
-	}
+	return results
 }
 
 func (pp *ProjectOp) getVE(tuple xsql.DataValuer, agg xsql.AggregateData, fv *xsql.FunctionValuer, afv *xsql.AggregateFunctionValuer) *xsql.ValuerEval {
@@ -105,6 +100,16 @@ func (pp *ProjectOp) getVE(tuple xsql.DataValuer, agg xsql.AggregateData, fv *xs
 	if pp.IsAggregate {
 		return &xsql.ValuerEval{Valuer: xsql.MultiAggregateValuer(agg, fv, tuple, fv, afv, &xsql.WildcardValuer{Data: tuple})}
 	} else {
+		var wr *xsql.WindowRange
+		switch input := agg.(type) {
+		case xsql.WindowTuplesSet:
+			wr = input.WindowRange
+		case *xsql.JoinTupleSets:
+			wr = input.WindowRange
+		}
+		if wr != nil {
+			return &xsql.ValuerEval{Valuer: xsql.MultiValuer(tuple, &xsql.WindowRangeValuer{WindowRange: wr}, fv, &xsql.WildcardValuer{Data: tuple})}
+		}
 		return &xsql.ValuerEval{Valuer: xsql.MultiValuer(tuple, fv, &xsql.WildcardValuer{Data: tuple})}
 	}
 }

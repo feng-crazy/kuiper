@@ -192,21 +192,6 @@ func (fr *FieldRef) IsColumn() bool {
 func (fr *FieldRef) IsAlias() bool {
 	return fr.StreamName == AliasStream
 }
-func (fr *FieldRef) IsSQLField() bool {
-	return fr.StreamName != ""
-}
-
-func (fr *FieldRef) IsAggregate() bool {
-	if fr.StreamName != AliasStream {
-		return false
-	}
-	// lazy calculate
-	if fr.isAggregate == nil {
-		tr := IsAggregate(fr.Expression)
-		fr.isAggregate = &tr
-	}
-	return *fr.isAggregate
-}
 
 func (fr *FieldRef) RefSelection(a *AliasRef) {
 	fr.AliasRef = a
@@ -234,7 +219,7 @@ type AliasRef struct {
 	// MUST have after binding, calculate once in initializer. Could be 0 when alias an Expression without col like "1+2"
 	refSources []StreamName
 	// optional, lazy set when calculating isAggregate
-	isAggregate *bool
+	IsAggregate *bool
 }
 
 func NewAliasRef(e Expr) (*AliasRef, error) {
@@ -278,3 +263,10 @@ type MetaRef struct {
 
 func (fr *MetaRef) expr() {}
 func (fr *MetaRef) node() {}
+
+type JsonFieldRef struct {
+	Name string
+}
+
+func (fr *JsonFieldRef) expr() {}
+func (fr *JsonFieldRef) node() {}

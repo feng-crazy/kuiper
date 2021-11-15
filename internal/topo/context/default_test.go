@@ -15,7 +15,9 @@
 package context
 
 import (
+	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/internal/topo/state"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"log"
@@ -26,6 +28,10 @@ import (
 )
 
 func TestState(t *testing.T) {
+	err := store.SetupDefault()
+	if err != nil {
+		t.Error(err)
+	}
 	var (
 		i      = 0
 		ruleId = "testStateRule"
@@ -38,12 +44,12 @@ func TestState(t *testing.T) {
 		}
 	)
 	//initialization
-	store, err := state.CreateStore(ruleId, api.AtLeastOnce)
+	cStore, err := state.CreateStore(ruleId, api.AtLeastOnce)
 	if err != nil {
 		t.Errorf("Get store for rule %s error: %s", ruleId, err)
 		return
 	}
-	ctx := Background().WithMeta("testStateRule", "op1", store).(*DefaultContext)
+	ctx := Background().WithMeta("testStateRule", "op1", cStore).(*DefaultContext)
 	defer cleanStateData()
 	// Do state function
 	_ = ctx.IncrCounter("key1", 20)
@@ -99,5 +105,136 @@ func cleanStateData() {
 	err = os.RemoveAll(c)
 	if err != nil {
 		conf.Log.Error(err)
+	}
+}
+
+func TestDynamicProp(t *testing.T) {
+	var tests = []struct {
+		j string
+		v []interface{} // values
+		r []interface{} // parsed results
+	}{
+		{
+			j: "$.a",
+			v: []interface{}{
+				map[string]interface{}{
+					"a": 123,
+					"b": "dafds",
+				},
+				map[string]interface{}{
+					"a": "single",
+					"c": 20.2,
+				},
+				map[string]interface{}{
+					"b": "b",
+					"c": "c",
+				},
+			},
+			r: []interface{}{
+				123,
+				"single",
+				nil,
+			},
+		}, {
+			j: "$[0].a",
+			v: []interface{}{
+				[]map[string]interface{}{{
+					"a": 123,
+					"b": "dafds",
+				}},
+				[]map[string]interface{}{},
+				[]map[string]interface{}{
+					{
+						"a": "single",
+						"c": 20.2,
+					},
+					{
+						"b": "b",
+						"c": "c",
+					},
+				},
+			},
+			r: []interface{}{
+				123,
+				nil,
+				"single",
+			},
+		}, {
+			j: "a",
+			v: []interface{}{
+				map[string]interface{}{
+					"a": 123,
+					"b": "dafds",
+				},
+				map[string]interface{}{
+					"a": "single",
+					"c": 20.2,
+				},
+				map[string]interface{}{
+					"b": "b",
+					"c": "c",
+				},
+			},
+			r: []interface{}{
+				"a",
+				"a",
+				"a",
+			},
+		},
+	}
+	fmt.Printf("The test bucket size is %d.\n\n", len(tests))
+	ctx := Background().WithMeta("testStateRule", "op1", &state.MemoryStore{})
+	for i, tt := range tests {
+		var result []interface{}
+		for _, v := range tt.v {
+			prop, err := ctx.ParseDynamicProp(tt.j, v)
+			if err != nil {
+				fmt.Printf("%d:%s parse %v error\n", i, tt.j, v)
+			}
+			result = append(result, prop)
+		}
+		if !reflect.DeepEqual(tt.r, result) {
+			t.Errorf("%d. %s\n\nstmt mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.j, tt.r, result)
+		}
+	}
+}
+
+func TestTransition(t *testing.T) {
+	mockFunc := func(d interface{}) ([]byte, bool, error) {
+		return []byte(fmt.Sprintf("%v", d)), true, nil
+	}
+	var tests = []struct {
+		trans *TransConfig
+		r     []byte
+	}{
+		{
+			trans: &TransConfig{
+				Data:  "hello",
+				TFunc: mockFunc,
+			},
+			r: []byte(`hello`),
+		}, {
+			trans: &TransConfig{
+				Data:  "world",
+				TFunc: mockFunc,
+			},
+			r: []byte(`world`),
+		}, {
+			trans: &TransConfig{
+				Data:  map[string]interface{}{"a": "hello"},
+				TFunc: mockFunc,
+			},
+			r: []byte(`map[a:hello]`),
+		},
+	}
+
+	fmt.Printf("The test bucket size is %d.\n\n", len(tests))
+	ctx := Background().WithMeta("testTransRule", "op1", &state.MemoryStore{}).(*DefaultContext)
+	for i, tt := range tests {
+		nc := WithValue(ctx, TransKey, tt.trans)
+		r, _, _ := nc.TransformOutput()
+		if !reflect.DeepEqual(tt.r, r) {
+			t.Errorf("%d\n\nstmt mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, string(tt.r), string(r))
+		}
 	}
 }

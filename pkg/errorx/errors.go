@@ -14,12 +14,16 @@
 
 package errorx
 
+import "fmt"
+
 type ErrorCode int
 
 const (
 	GENERAL_ERR ErrorCode = iota
 	NOT_FOUND
 )
+
+const IOErr = "io error"
 
 var NotFoundErr = NewWithCode(NOT_FOUND, "not found")
 
@@ -42,4 +46,27 @@ func (e *Error) Error() string {
 
 func (e *Error) Code() ErrorCode {
 	return e.code
+}
+
+type MultiError map[string]error
+
+func (e MultiError) Error() string {
+	var s string
+	switch len(e) {
+	case 0, 1:
+		s = ""
+	default:
+		s = "Get multiple errors: "
+	}
+	for k, v := range e {
+		s = fmt.Sprintf("%s\n%s:%s", s, k, v.Error())
+	}
+	return s
+}
+
+func (e MultiError) GetError() error {
+	if len(e) > 0 {
+		return e
+	}
+	return nil
 }

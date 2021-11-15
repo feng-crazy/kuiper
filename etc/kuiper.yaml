@@ -17,6 +17,8 @@ basic:
   restIp: 0.0.0.0
   # REST service port
   restPort: 9081
+  # true|false, when true, will check the RSA jwt token for rest api
+  authentication: false
   #  restTls:
   #    certfile: /var/https-server.crt
   #    keyfile: /var/https-server.key
@@ -52,3 +54,16 @@ sink:
 
   # Control to disable cache or not. If it's set to true, then the cache will be disabled, otherwise, it will be enabled.
   disableCache: true
+
+store:
+  #Type of store that will be used for keeping state of the application
+  type: sqlite
+  redis:
+    host: localhost
+    port: 6379
+    password: kuiper
+    #Timeout in ms
+    timeout: 1000
+  sqlite:
+    #Sqlite file name, if left empty name of db will be sqliteKV.db
+    name:

@@ -528,7 +528,7 @@ func (p *Parser) parseUnaryExpr(isSubField bool) (ast.Expr, error) {
 					return &ast.MetaRef{StreamName: ast.StreamName(n[0]), Name: n[1]}, nil
 				}
 				if isSubField {
-					return &ast.MetaRef{StreamName: "", Name: n[0]}, nil
+					return &ast.JsonFieldRef{Name: n[0]}, nil
 				}
 				return &ast.MetaRef{StreamName: ast.DefaultStream, Name: n[0]}, nil
 			} else {
@@ -536,7 +536,7 @@ func (p *Parser) parseUnaryExpr(isSubField bool) (ast.Expr, error) {
 					return &ast.FieldRef{StreamName: ast.StreamName(n[0]), Name: n[1]}, nil
 				}
 				if isSubField {
-					return &ast.FieldRef{StreamName: "", Name: n[0]}, nil
+					return &ast.JsonFieldRef{Name: n[0]}, nil
 				}
 				return &ast.FieldRef{StreamName: ast.DefaultStream, Name: n[0]}, nil
 			}
@@ -662,7 +662,7 @@ func (p *Parser) parseCall(name string) (ast.Expr, error) {
 				return nil, fmt.Errorf("found %q, expected right paren.", lit2)
 			} else {
 				if p.inmeta {
-					args = append(args, &ast.MetaRef{StreamName: "", Name: "*"})
+					args = append(args, &ast.MetaRef{StreamName: ast.DefaultStream, Name: "*"})
 				} else {
 					args = append(args, &ast.Wildcard{Token: ast.ASTERISK})
 				}
@@ -1226,7 +1226,7 @@ func (p *Parser) parseStreamStructType() (ast.FieldType, error) {
 }
 
 func (p *Parser) parseStreamOptions() (*ast.Options, error) {
-	opts := &ast.Options{}
+	opts := &ast.Options{STRICT_VALIDATION: true}
 	v := reflect.ValueOf(opts)
 	lStack := &stack.Stack{}
 	if tok, lit := p.scanIgnoreWhitespace(); tok == ast.LPAREN {

@@ -17,7 +17,7 @@ package planner
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/internal/testx"
 	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/lf-edge/ekuiper/pkg/api"
@@ -26,6 +26,9 @@ import (
 	"strings"
 	"testing"
 )
+
+func init() {
+}
 
 type errorStruct struct {
 	err  string
@@ -116,10 +119,14 @@ var tests = []struct {
 		sql: `SELECT collect(*)[-1] as current FROM src1 GROUP BY COUNTWINDOW(2, 1) HAVING isNull(current->name) = false`,
 		r:   newErrorStruct(""),
 	},
+	{ // 14
+		sql: `SELECT sum(next->nid) as nid FROM src1 WHERE next->nid > 20 `,
+		r:   newErrorStruct(""),
+	},
 }
 
 func Test_validation(t *testing.T) {
-	store, err := sqlkv.GetKVStore("stream")
+	err, store := store.GetKV("stream")
 	if err != nil {
 		t.Error(err)
 		return
@@ -128,7 +135,8 @@ func Test_validation(t *testing.T) {
 		"src1": `CREATE STREAM src1 (
 					id1 BIGINT,
 					temp BIGINT,
-					name string
+					name string,
+					next STRUCT(NAME STRING, NID BIGINT)
 				) WITH (DATASOURCE="src1", FORMAT="json", KEY="ts");`,
 	}
 	types := map[string]ast.StreamType{
@@ -180,7 +188,7 @@ func Test_validation(t *testing.T) {
 }
 
 func Test_validationSchemaless(t *testing.T) {
-	store, err := sqlkv.GetKVStore("stream")
+	err, store := store.GetKV("stream")
 	if err != nil {
 		t.Error(err)
 		return

@@ -15,11 +15,12 @@
 package operator
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
+	"github.com/lf-edge/ekuiper/internal/testx"
 	"github.com/lf-edge/ekuiper/internal/topo/context"
 	"github.com/lf-edge/ekuiper/internal/xsql"
+	"github.com/lf-edge/ekuiper/pkg/cast"
 	"reflect"
 	"strings"
 	"testing"
@@ -44,6 +45,18 @@ func TestMiscFunc_Apply1(t *testing.T) {
 			result: []map[string]interface{}{{
 				"a": strings.ToLower("9E107D9D372BB6826BD81D3542A419D6"),
 			}},
+		},
+		{
+			sql: "SELECT md5(d) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "The quick brown fox jumps over the lazy dog",
+					"b": "myb",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
 		},
 		{
 			sql: "SELECT sha1(a) AS a FROM test",
@@ -157,7 +170,7 @@ func TestMiscFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"r": float64(0),
+				"r": 0,
 			}},
 		},
 
@@ -171,7 +184,7 @@ func TestMiscFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"r": float64(5),
+				"r": 5,
 			}},
 		},
 
@@ -226,7 +239,7 @@ func TestMiscFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": "2021-05-03T00:45:30Z",
+				"a": cast.TimeFromUnixMilli(1.62000273e+12),
 			}},
 		},
 	}
@@ -240,20 +253,10 @@ func TestMiscFunc_Apply1(t *testing.T) {
 			t.Errorf("parse sql %s error %v", tt.sql, err)
 		}
 		pp := &ProjectOp{Fields: stmt.Fields}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		result := pp.Apply(ctx, tt.data, fv, afv)
-		var mapRes []map[string]interface{}
-		if v, ok := result.([]byte); ok {
-			err := json.Unmarshal(v, &mapRes)
-			if err != nil {
-				t.Errorf("Failed to parse the input into map.\n")
-				continue
-			}
-			if !reflect.DeepEqual(tt.result, mapRes) {
-				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, mapRes)
-			}
-		} else {
-			t.Errorf("The returned result is not type of []byte\n")
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, result)
 		}
 	}
 }
@@ -292,22 +295,10 @@ func TestMqttFunc_Apply2(t *testing.T) {
 			t.Errorf("parse sql %s error %v", tt.sql, err)
 		}
 		pp := &ProjectOp{Fields: stmt.Fields}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		result := pp.Apply(ctx, tt.data, fv, afv)
-		var mapRes []map[string]interface{}
-		if v, ok := result.([]byte); ok {
-			err := json.Unmarshal(v, &mapRes)
-			if err != nil {
-				t.Errorf("Failed to parse the input into map.\n")
-				continue
-			}
-			//fmt.Printf("%t\n", mapRes["kuiper_field_0"])
-
-			if !reflect.DeepEqual(tt.result, mapRes) {
-				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, mapRes)
-			}
-		} else {
-			t.Errorf("The returned result is not type of []byte\n")
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, result)
 		}
 	}
 }
@@ -408,22 +399,10 @@ func TestMetaFunc_Apply1(t *testing.T) {
 			t.Errorf("parse sql %s error %v", tt.sql, err)
 		}
 		pp := &ProjectOp{Fields: stmt.Fields}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		result := pp.Apply(ctx, tt.data, fv, afv)
-		var mapRes []map[string]interface{}
-		if v, ok := result.([]byte); ok {
-			err := json.Unmarshal(v, &mapRes)
-			if err != nil {
-				t.Errorf("Failed to parse the input into map.\n")
-				continue
-			}
-			//fmt.Printf("%t\n", mapRes["kuiper_field_0"])
-
-			if !reflect.DeepEqual(tt.result, mapRes) {
-				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, mapRes)
-			}
-		} else {
-			t.Errorf("The returned result is not type of []byte\n")
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, result)
 		}
 	}
 }
@@ -433,6 +412,7 @@ func TestJsonPathFunc_Apply1(t *testing.T) {
 		sql    string
 		data   interface{}
 		result interface{}
+		err    string
 	}{
 		{
 			sql: `SELECT json_path_query(equipment, "$.arm_right") AS a FROM test`,
@@ -783,8 +763,30 @@ func TestJsonPathFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"powerOnTs": float64(1000),
+				"powerOnTs": 1000,
 			}},
+		}, {
+			sql: `SELECT json_path_query(equipment, "$.arm_right") AS a FROM test`,
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"class": "warrior",
+					"equipment2": map[string]interface{}{
+						"rings": []map[string]interface{}{
+							{
+								"name":   "ring of despair",
+								"weight": 0.1,
+							}, {
+								"name":   "ring of strength",
+								"weight": 2.4,
+							},
+						},
+						"arm_right": "Sword of flame",
+						"arm_left":  "Shield of faith",
+					},
+				},
+			},
+			err: "run Select error: call func json_path_query error: json_path_query function error: invalid data nil for jsonpath",
 		},
 	}
 
@@ -797,22 +799,26 @@ func TestJsonPathFunc_Apply1(t *testing.T) {
 			t.Errorf("parse sql %s error %v", tt.sql, err)
 		}
 		pp := &ProjectOp{Fields: stmt.Fields}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(ctx)
 		result := pp.Apply(ctx, tt.data, fv, afv)
-		var mapRes []map[string]interface{}
-		if v, ok := result.([]byte); ok {
-			err := json.Unmarshal(v, &mapRes)
-			if err != nil {
-				t.Errorf("Failed to parse the input into map.\n")
-				continue
+		switch rt := result.(type) {
+		case []map[string]interface{}:
+			if tt.err == "" {
+				if !reflect.DeepEqual(tt.result, result) {
+					t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, result)
+				}
+			} else {
+				t.Errorf("%d: invalid result:\n  exp error %s\n  got=%s\n\n", i, tt.err, result)
 			}
-			//fmt.Printf("%t\n", mapRes["kuiper_field_0"])
-
-			if !reflect.DeepEqual(tt.result, mapRes) {
-				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, mapRes)
+		case error:
+			if tt.err == "" {
+				t.Errorf("%d: got error:\n  exp=%s\n  got=%s\n\n", i, tt.result, rt)
+			} else if !reflect.DeepEqual(tt.err, testx.Errstring(rt)) {
+				t.Errorf("%d: error mismatch:\n  exp=%s\n  got=%s\n\n", i, tt.err, rt)
 			}
-		} else {
-			t.Errorf("The returned result is not type of []byte but found %v", result)
+		default:
+			t.Errorf("%d: Invalid returned result found %v", i, result)
 		}
+
 	}
 }

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/pkg/model"
 	"github.com/lf-edge/ekuiper/internal/plugin"
+	"github.com/lf-edge/ekuiper/internal/plugin/native"
+	"github.com/lf-edge/ekuiper/internal/plugin/portable"
 	"github.com/lf-edge/ekuiper/internal/service"
 	"github.com/lf-edge/ekuiper/internal/topo/sink"
 	"strings"
@@ -58,7 +60,7 @@ func stopQuery() {
 /**
  * qid is not currently used.
  */
-func (t *Server) GetQueryResult(qid string, reply *string) error {
+func (t *Server) GetQueryResult(_ string, reply *string) error {
 	if rs, ok := registry.Load(QueryRuleId); ok {
 		c := (*rs.Topology).GetContext()
 		if c != nil && c.Err() != nil {
@@ -210,7 +212,11 @@ func (t *Server) CreatePlugin(arg *model.PluginDesc, reply *string) error {
 	if p.GetFile() == "" {
 		return fmt.Errorf("Create plugin error: Missing plugin file url.")
 	}
-	err = pluginManager.Register(pt, p)
+	if pt == plugin.PORTABLE {
+		err = portable.GetManager().Register(p)
+	} else {
+		err = native.GetManager().Register(pt, p)
+	}
 	if err != nil {
 		return fmt.Errorf("Create plugin error: %s", err)
 	} else {
@@ -227,7 +233,7 @@ func (t *Server) RegisterPlugin(arg *model.PluginDesc, reply *string) error {
 	if len(p.GetSymbols()) == 0 {
 		return fmt.Errorf("Register plugin functions error: Missing function list.")
 	}
-	err = pluginManager.RegisterFuncs(p.GetName(), p.GetSymbols())
+	err = native.GetManager().RegisterFuncs(p.GetName(), p.GetSymbols())
 	if err != nil {
 		return fmt.Errorf("Create plugin error: %s", err)
 	} else {
@@ -242,44 +248,44 @@ func (t *Server) DropPlugin(arg *model.PluginDesc, reply *string) error {
 	if err != nil {
 		return fmt.Errorf("Drop plugin error: %s", err)
 	}
-	err = pluginManager.Delete(pt, p.GetName(), arg.Stop)
-	if err != nil {
-		return fmt.Errorf("Drop plugin error: %s", err)
-	} else {
-		if arg.Stop {
-			*reply = fmt.Sprintf("Plugin %s is dropped and Kuiper will be stopped.", p.GetName())
+	if pt == plugin.PORTABLE {
+		err = portable.GetManager().Delete(p.GetName())
+		if err != nil {
+			return fmt.Errorf("Drop plugin error: %s", err)
 		} else {
-			*reply = fmt.Sprintf("Plugin %s is dropped and Kuiper must restart for the change to take effect.", p.GetName())
+			*reply = fmt.Sprintf("Plugin %s is dropped .", p.GetName())
 		}
-
+	} else {
+		err = native.GetManager().Delete(pt, p.GetName(), arg.Stop)
+		if err != nil {
+			return fmt.Errorf("Drop plugin error: %s", err)
+		} else {
+			if arg.Stop {
+				*reply = fmt.Sprintf("Plugin %s is dropped and Kuiper will be stopped.", p.GetName())
+			} else {
+				*reply = fmt.Sprintf("Plugin %s is dropped and Kuiper must restart for the change to take effect.", p.GetName())
+			}
+		}
 	}
 	return nil
 }
 
 func (t *Server) ShowPlugins(arg int, reply *string) error {
 	pt := plugin.PluginType(arg)
-	l, err := pluginManager.List(pt)
-	if err != nil {
-		return fmt.Errorf("Show plugin error: %s", err)
-	} else {
-		if len(l) == 0 {
-			l = append(l, "No plugin is found.")
-		}
-		*reply = strings.Join(l, "\n")
+	l := native.GetManager().List(pt)
+	if len(l) == 0 {
+		l = append(l, "No plugin is found.")
 	}
+	*reply = strings.Join(l, "\n")
 	return nil
 }
 
 func (t *Server) ShowUdfs(_ int, reply *string) error {
-	l, err := pluginManager.ListSymbols()
-	if err != nil {
-		return fmt.Errorf("Show UDFs error: %s", err)
-	} else {
-		if len(l) == 0 {
-			l = append(l, "No udf is found.")
-		}
-		*reply = strings.Join(l, "\n")
+	l := native.GetManager().ListSymbols()
+	if len(l) == 0 {
+		l = append(l, "No udf is found.")
 	}
+	*reply = strings.Join(l, "\n")
 	return nil
 }
 
@@ -289,7 +295,13 @@ func (t *Server) DescPlugin(arg *model.PluginDesc, reply *string) error {
 	if err != nil {
 		return fmt.Errorf("Describe plugin error: %s", err)
 	}
-	m, ok := pluginManager.Get(pt, p.GetName())
+	var m interface{}
+	var ok bool
+	if pt == plugin.PORTABLE {
+		m, ok = portable.GetManager().GetPluginInfo(p.GetName())
+	} else {
+		m, ok = native.GetManager().GetPluginInfo(pt, p.GetName())
+	}
 	if !ok {
 		return fmt.Errorf("Describe plugin error: not found")
 	} else {
@@ -303,7 +315,7 @@ func (t *Server) DescPlugin(arg *model.PluginDesc, reply *string) error {
 }
 
 func (t *Server) DescUdf(arg string, reply *string) error {
-	m, ok := pluginManager.GetSymbol(arg)
+	m, ok := native.GetManager().GetPluginBySymbol(plugin.FUNCTION, arg)
 	if !ok {
 		return fmt.Errorf("Describe udf error: not found")
 	} else {
@@ -333,7 +345,7 @@ func (t *Server) CreateService(arg *model.RPCArgDesc, reply *string) error {
 	if sd.File == "" {
 		return fmt.Errorf("Create service error: Missing service file url.")
 	}
-	err := serviceManager.Create(sd)
+	err := service.GetManager().Create(sd)
 	if err != nil {
 		return fmt.Errorf("Create service error: %s", err)
 	} else {
@@ -343,7 +355,7 @@ func (t *Server) CreateService(arg *model.RPCArgDesc, reply *string) error {
 }
 
 func (t *Server) DescService(name string, reply *string) error {
-	s, err := serviceManager.Get(name)
+	s, err := service.GetManager().Get(name)
 	if err != nil {
 		return fmt.Errorf("Desc service error : %s.", err)
 	} else {
@@ -357,7 +369,7 @@ func (t *Server) DescService(name string, reply *string) error {
 }
 
 func (t *Server) DescServiceFunc(name string, reply *string) error {
-	s, err := serviceManager.GetFunction(name)
+	s, err := service.GetManager().GetFunction(name)
 	if err != nil {
 		return fmt.Errorf("Desc service func error : %s.", err)
 	} else {
@@ -371,7 +383,7 @@ func (t *Server) DescServiceFunc(name string, reply *string) error {
 }
 
 func (t *Server) DropService(name string, reply *string) error {
-	err := serviceManager.Delete(name)
+	err := service.GetManager().Delete(name)
 	if err != nil {
 		return fmt.Errorf("Drop service error : %s.", err)
 	}
@@ -380,7 +392,7 @@ func (t *Server) DropService(name string, reply *string) error {
 }
 
 func (t *Server) ShowServices(_ int, reply *string) error {
-	s, err := serviceManager.List()
+	s, err := service.GetManager().List()
 	if err != nil {
 		return fmt.Errorf("Show service error: %s.", err)
 	}
@@ -397,7 +409,7 @@ func (t *Server) ShowServices(_ int, reply *string) error {
 }
 
 func (t *Server) ShowServiceFuncs(_ int, reply *string) error {
-	s, err := serviceManager.ListFunctions()
+	s, err := service.GetManager().ListFunctions()
 	if err != nil {
 		return fmt.Errorf("Show service funcs error: %s.", err)
 	}
@@ -441,17 +453,19 @@ func init() {
 	go func() {
 		for {
 			<-ticker.C
-			if _, ok := registry.Load(QueryRuleId); !ok {
-				continue
-			}
+			if registry != nil {
+				if _, ok := registry.Load(QueryRuleId); !ok {
+					continue
+				}
 
-			n := time.Now()
-			w := 10 * time.Second
-			if v := n.Sub(sink.QR.LastFetch); v >= w {
-				logger.Printf("The client seems no longer fetch the query result, stop the query now.")
-				stopQuery()
-				ticker.Stop()
-				return
+				n := time.Now()
+				w := 10 * time.Second
+				if v := n.Sub(sink.QR.LastFetch); v >= w {
+					logger.Printf("The client seems no longer fetch the query result, stop the query now.")
+					stopQuery()
+					ticker.Stop()
+					return
+				}
 			}
 		}
 	}()

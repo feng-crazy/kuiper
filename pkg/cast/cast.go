@@ -15,8 +15,8 @@
 package cast
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"html/template"
 	"reflect"
 	"strconv"
@@ -35,6 +35,9 @@ const (
 
 //TODO datetime type
 func ToStringAlways(input interface{}) string {
+	if input == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v", input)
 }
 
@@ -837,10 +840,11 @@ func ToTypedSlice(input interface{}, conv func(interface{}, Strictness) (interfa
 		return nil, fmt.Errorf("cannot convert %[1]T(%[1]v) to %s slice)", input, eleType)
 	}
 	ele, err := conv(s.Index(0).Interface(), sn)
-	if err != nil {
+	et := reflect.TypeOf(ele)
+	if err != nil || et == nil {
 		return nil, fmt.Errorf("cannot convert %[1]T(%[1]v) to %s slice for the %d element: %v", input, eleType, 0, err)
 	}
-	result := reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(ele)), s.Len(), s.Len())
+	result := reflect.MakeSlice(reflect.SliceOf(et), s.Len(), s.Len())
 	result.Index(0).Set(reflect.ValueOf(ele))
 	for i := 1; i < s.Len(); i++ {
 		ele, err := conv(s.Index(i).Interface(), sn)
@@ -948,19 +952,41 @@ func ToBytesSlice(input interface{}, sn Strictness) ([][]byte, error) {
 	return result, nil
 }
 
+//MapToStruct
 /*
 *   Convert a map into a struct. The output parameter must be a pointer to a struct
 *   The struct can have the json meta data
  */
 func MapToStruct(input, output interface{}) error {
-	// convert map to json
-	jsonString, err := json.Marshal(input)
+	config := &mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  output,
+	}
+	decoder, err := mapstructure.NewDecoder(config)
 	if err != nil {
 		return err
 	}
 
-	// convert json to struct
-	return json.Unmarshal(jsonString, output)
+	return decoder.Decode(input)
+}
+
+// MapToStructStrict
+/*
+*   Convert a map into a struct. The output parameter must be a pointer to a struct
+*   If the input have key/value pair output do not defined, will report error
+ */
+func MapToStructStrict(input, output interface{}) error {
+	config := &mapstructure.DecoderConfig{
+		ErrorUnused: true,
+		TagName:     "json",
+		Result:      output,
+	}
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+
+	return decoder.Decode(input)
 }
 
 func ConvertMap(s map[interface{}]interface{}) map[string]interface{} {
@@ -1013,4 +1039,40 @@ func isIntegral64(val float64) bool {
 
 func isIntegral32(val float32) bool {
 	return val == float32(int(val))
+}
+
+func ConvertToInterfaceArr(orig map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range orig {
+		vt := reflect.TypeOf(v)
+		if vt == nil {
+			result[k] = nil
+			continue
+		}
+		switch vt.Kind() {
+		case reflect.Slice:
+			result[k] = ConvertSlice(v)
+		case reflect.Map:
+			result[k] = ConvertToInterfaceArr(v.(map[string]interface{}))
+		default:
+			result[k] = v
+		}
+	}
+	return result
+}
+
+func ConvertSlice(v interface{}) []interface{} {
+	value := reflect.ValueOf(v)
+	tempArr := make([]interface{}, value.Len())
+	for i := 0; i < value.Len(); i++ {
+		item := value.Index(i)
+		if item.Kind() == reflect.Map {
+			tempArr[i] = ConvertToInterfaceArr(item.Interface().(map[string]interface{}))
+		} else if item.Kind() == reflect.Slice {
+			tempArr[i] = ConvertSlice(item.Interface())
+		} else {
+			tempArr[i] = item.Interface()
+		}
+	}
+	return tempArr
 }

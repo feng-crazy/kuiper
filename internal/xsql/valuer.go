@@ -16,6 +16,7 @@ package xsql
 
 import (
 	"fmt"
+	"github.com/lf-edge/ekuiper/internal/binder/function"
 	"github.com/lf-edge/ekuiper/pkg/ast"
 	"github.com/lf-edge/ekuiper/pkg/cast"
 	"math"
@@ -24,6 +25,11 @@ import (
 	"strings"
 	"time"
 )
+
+var implicitValueFuncs = map[string]bool{
+	"window_start": true,
+	"window_end":   true,
+}
 
 // Valuer is the interface that wraps the Value() method.
 type Valuer interface {
@@ -39,6 +45,11 @@ type CallValuer interface {
 
 	// Call is invoked to evaluate a function call (if possible).
 	Call(name string, args []interface{}) (interface{}, bool)
+}
+
+// FuncValuer can calculate function type value like window_start and window_end
+type FuncValuer interface {
+	FuncValue(key string) (interface{}, bool)
 }
 
 type AggregateCallValuer interface {
@@ -272,6 +283,17 @@ func (a multiValuer) AppendAlias(key string, value interface{}) bool {
 	return false
 }
 
+func (a multiValuer) FuncValue(key string) (interface{}, bool) {
+	for _, valuer := range a {
+		if vv, ok := valuer.(FuncValuer); ok {
+			if r, ok := vv.FuncValue(key); ok {
+				return r, true
+			}
+		}
+	}
+	return nil, false
+}
+
 func (a multiValuer) Call(name string, args []interface{}) (interface{}, bool) {
 	for _, valuer := range a {
 		if valuer, ok := valuer.(CallValuer); ok {
@@ -301,7 +323,7 @@ func MultiAggregateValuer(data AggregateData, singleCallValuer CallValuer, value
 
 func (a *multiAggregateValuer) Call(name string, args []interface{}) (interface{}, bool) {
 	// assume the aggFuncMap already cache the custom agg funcs in IsAggFunc()
-	isAgg := ast.FuncFinderSingleton().FuncType(name) == ast.AggFunc
+	isAgg := function.IsAggFunc(name)
 	for _, valuer := range a.multiValuer {
 		if a, ok := valuer.(AggregateCallValuer); ok && isAgg {
 			if v, ok := a.Call(name, args); ok {
@@ -371,23 +393,20 @@ func (v *ValuerEval) Eval(expr ast.Expr) interface{} {
 		}
 		return &BracketEvalResult{Start: ii, End: ii}
 	case *ast.Call:
-		if valuer, ok := v.Valuer.(CallValuer); ok {
-			switch expr.Name {
-			case "window_start", "window_end":
-				if aggreValuer, ok := valuer.(AggregateCallValuer); ok {
-					ad := aggreValuer.GetAllTuples()
-					if expr.Name == "window_start" {
-						return ad.GetWindowStart()
-					} else {
-						return ad.GetWindowEnd()
-					}
+		if _, ok := implicitValueFuncs[expr.Name]; ok {
+			if vv, ok := v.Valuer.(FuncValuer); ok {
+				val, ok := vv.FuncValue(expr.Name)
+				if ok {
+					return val
 				}
-			default:
+			}
+		} else {
+			if valuer, ok := v.Valuer.(CallValuer); ok {
 				var args []interface{}
 				if len(expr.Args) > 0 {
 					args = make([]interface{}, len(expr.Args))
 					for i, arg := range expr.Args {
-						if aggreValuer, ok := valuer.(AggregateCallValuer); ast.FuncFinderSingleton().IsAggFunc(expr) && ok {
+						if aggreValuer, ok := valuer.(AggregateCallValuer); function.IsAggFunc(expr.Name) && ok {
 							args[i] = aggreValuer.GetAllTuples().AggregateEval(arg, aggreValuer.GetSingleCallValuer())
 						} else {
 							args[i] = v.Eval(arg)
@@ -431,6 +450,13 @@ func (v *ValuerEval) Eval(expr ast.Expr) interface{} {
 			//The field specified with stream source
 			val, _ := v.Valuer.Meta(string(expr.StreamName) + ast.COLUMN_SEPARATOR + expr.Name)
 			return val
+		}
+	case *ast.JsonFieldRef:
+		val, ok := v.Valuer.Value(expr.Name)
+		if ok {
+			return val
+		} else {
+			return nil
 		}
 	case *ast.Wildcard:
 		val, _ := v.Valuer.Value("")
@@ -515,7 +541,7 @@ func (v *ValuerEval) evalJsonExpr(result interface{}, op ast.Token, expr ast.Exp
 	case ast.ARROW:
 		if val, ok := result.(map[string]interface{}); ok {
 			switch e := expr.(type) {
-			case *ast.FieldRef, *ast.MetaRef:
+			case *ast.JsonFieldRef:
 				ve := &ValuerEval{Valuer: Message(val)}
 				return ve.Eval(e)
 			default:

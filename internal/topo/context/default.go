@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
+	"github.com/lf-edge/ekuiper/internal/topo/connection"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/cast"
 	"github.com/sirupsen/logrus"
+	"strings"
 	"sync"
 	"time"
 )
@@ -37,6 +39,8 @@ type DefaultContext struct {
 	store    api.Store
 	state    *sync.Map
 	snapshot map[string]interface{}
+	// cache
+	jsonEvalReg sync.Map
 }
 
 func Background() *DefaultContext {
@@ -105,18 +109,40 @@ func (c *DefaultContext) SetError(err error) {
 	c.err = err
 }
 
+func (c *DefaultContext) ParseDynamicProp(prop string, data interface{}) (interface{}, error) {
+	// If not a json path, just return itself
+	if !strings.HasPrefix(prop, "$") {
+		return prop, nil
+	}
+	var (
+		je  conf.JsonPathEval
+		err error
+	)
+	if raw, ok := c.jsonEvalReg.Load(prop); ok {
+		je = raw.(conf.JsonPathEval)
+	} else {
+		je, err = conf.GetJsonPathEval(prop)
+		if err != nil {
+			return nil, err
+		}
+		c.jsonEvalReg.Store(prop, je)
+	}
+	return je.Eval(data)
+}
+
 func (c *DefaultContext) WithMeta(ruleId string, opId string, store api.Store) api.StreamContext {
 	s, err := store.GetOpState(opId)
 	if err != nil {
 		c.GetLogger().Warnf("Initialize context store error for %s: %s", opId, err)
 	}
 	return &DefaultContext{
-		ruleId:     ruleId,
-		opId:       opId,
-		instanceId: 0,
-		ctx:        c.ctx,
-		store:      store,
-		state:      s,
+		ruleId:      ruleId,
+		opId:        opId,
+		instanceId:  0,
+		ctx:         c.ctx,
+		store:       store,
+		state:       s,
+		jsonEvalReg: sync.Map{},
 	}
 }
 
@@ -197,4 +223,12 @@ func (c *DefaultContext) SaveState(checkpointId int64) error {
 	}
 	c.snapshot = nil
 	return nil
+}
+
+func (c *DefaultContext) GetConnection(connectSelector string) (interface{}, error) {
+	return connection.GetConnection(connectSelector)
+}
+
+func (c *DefaultContext) ReleaseConnection(connectSelector string) {
+	connection.ReleaseConnection(connectSelector)
 }

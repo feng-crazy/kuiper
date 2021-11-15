@@ -18,7 +18,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/internal/topo/checkpoint"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/kv"
@@ -101,7 +101,7 @@ func (c *Cache) initStore(ctx api.StreamContext) {
 		Tail: 0,
 	}
 	var err error
-	c.store, err = sqlkv.GetKVStore(path.Join("sink", ctx.GetRuleId()))
+	err, c.store = store.GetKV(path.Join("sink", ctx.GetRuleId()))
 	if err != nil {
 		c.drainError(err)
 	}

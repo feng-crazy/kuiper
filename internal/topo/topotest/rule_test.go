@@ -59,11 +59,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -80,9 +75,8 @@ func TestSingleSQL(t *testing.T) {
 			T: &topo.PrintableTopo{
 				Sources: []string{"source_demo"},
 				Edges: map[string][]string{
-					"source_demo":            {"op_1_preprocessor_demo"},
-					"op_1_preprocessor_demo": {"op_2_project"},
-					"op_2_project":           {"sink_mockSink"},
+					"source_demo":  {"op_2_project"},
+					"op_2_project": {"sink_mockSink"},
 				},
 			},
 		}, {
@@ -99,11 +93,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(0),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(2),
@@ -136,11 +125,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(0),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(2),
@@ -179,11 +163,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demoError_0_exceptions_total":   int64(2),
-				"op_1_preprocessor_demoError_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demoError_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demoError_0_records_out_total":  int64(3),
-
 				"op_3_project_0_exceptions_total":   int64(2),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(4),
@@ -193,7 +172,7 @@ func TestSingleSQL(t *testing.T) {
 				"sink_mockSink_0_records_in_total":  int64(4),
 				"sink_mockSink_0_records_out_total": int64(4),
 
-				"source_demoError_0_exceptions_total":  int64(0),
+				"source_demoError_0_exceptions_total":  int64(2),
 				"source_demoError_0_records_in_total":  int64(5),
 				"source_demoError_0_records_out_total": int64(5),
 
@@ -228,11 +207,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -260,11 +234,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(0),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(2),
@@ -304,11 +273,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo1_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo1_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo1_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo1_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -340,11 +304,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo1_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo1_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo1_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo1_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(0),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(2),
@@ -394,11 +353,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -415,9 +369,8 @@ func TestSingleSQL(t *testing.T) {
 			T: &topo.PrintableTopo{
 				Sources: []string{"source_demo"},
 				Edges: map[string][]string{
-					"source_demo":            {"op_1_preprocessor_demo"},
-					"op_1_preprocessor_demo": {"op_2_project"},
-					"op_2_project":           {"sink_mockSink"},
+					"source_demo":  {"op_2_project"},
+					"op_2_project": {"sink_mockSink"},
 				},
 			},
 		}, {
@@ -448,14 +401,6 @@ func TestSingleSQL(t *testing.T) {
 			},
 			W: 15,
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":  int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":  int64(5),
-				"op_1_preprocessor_demo_0_records_out_total": int64(5),
-
-				"op_2_tableprocessor_table1_0_exceptions_total":  int64(0),
-				"op_2_tableprocessor_table1_0_records_in_total":  int64(4),
-				"op_2_tableprocessor_table1_0_records_out_total": int64(1),
-
 				"op_3_join_aligner_0_records_in_total":  int64(6),
 				"op_3_join_aligner_0_records_out_total": int64(5),
 
@@ -477,7 +422,7 @@ func TestSingleSQL(t *testing.T) {
 
 				"source_table1_0_exceptions_total":  int64(0),
 				"source_table1_0_records_in_total":  int64(4),
-				"source_table1_0_records_out_total": int64(4),
+				"source_table1_0_records_out_total": int64(1),
 			},
 		}, {
 			Name: `TestSingleSQLRule11`,
@@ -494,14 +439,6 @@ func TestSingleSQL(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":  int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":  int64(5),
-				"op_1_preprocessor_demo_0_records_out_total": int64(5),
-
-				"op_2_tableprocessor_demoTable_0_exceptions_total":  int64(0),
-				"op_2_tableprocessor_demoTable_0_records_in_total":  int64(5),
-				"op_2_tableprocessor_demoTable_0_records_out_total": int64(5),
-
 				"op_3_join_aligner_0_records_in_total":  int64(10),
 				"op_3_join_aligner_0_records_out_total": int64(5),
 
@@ -524,6 +461,48 @@ func TestSingleSQL(t *testing.T) {
 				"source_demoTable_0_exceptions_total":  int64(0),
 				"source_demoTable_0_records_in_total":  int64(5),
 				"source_demoTable_0_records_out_total": int64(5),
+			},
+		}, {
+			Name: `TestSingleSQLRule12`,
+			Sql:  "SELECT demo.ts as demoTs, table1.id as table1Id FROM demo INNER JOIN table1 on demoTs = table1Id",
+			R: [][]map[string]interface{}{
+				{{
+					"table1Id": float64(1541152486013),
+					"demoTs":   float64(1541152486013),
+				}},
+				{{
+					"table1Id": float64(1541152487632),
+					"demoTs":   float64(1541152487632),
+				}},
+				{{
+					"table1Id": float64(1541152489252),
+					"demoTs":   float64(1541152489252),
+				}},
+			},
+			W: 15,
+			M: map[string]interface{}{
+				"op_3_join_aligner_0_records_in_total":  int64(6),
+				"op_3_join_aligner_0_records_out_total": int64(5),
+
+				"op_4_join_0_exceptions_total":  int64(0),
+				"op_4_join_0_records_in_total":  int64(5),
+				"op_4_join_0_records_out_total": int64(3),
+
+				"op_5_project_0_exceptions_total":  int64(0),
+				"op_5_project_0_records_in_total":  int64(3),
+				"op_5_project_0_records_out_total": int64(3),
+
+				"sink_mockSink_0_exceptions_total":  int64(0),
+				"sink_mockSink_0_records_in_total":  int64(3),
+				"sink_mockSink_0_records_out_total": int64(3),
+
+				"source_demo_0_exceptions_total":  int64(0),
+				"source_demo_0_records_in_total":  int64(5),
+				"source_demo_0_records_out_total": int64(5),
+
+				"source_table1_0_exceptions_total":  int64(0),
+				"source_table1_0_records_in_total":  int64(4),
+				"source_table1_0_records_out_total": int64(1),
 			},
 		},
 	}
@@ -571,11 +550,6 @@ func TestSingleSQLError(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_ldemo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_ldemo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_ldemo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_ldemo_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(1),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(3),
@@ -613,11 +587,6 @@ func TestSingleSQLError(t *testing.T) {
 				{{}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_ldemo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_ldemo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_ldemo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_ldemo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(1),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -659,11 +628,6 @@ func TestSingleSQLOmitError(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_ldemo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_ldemo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_ldemo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_ldemo_0_records_out_total":  int64(5),
-
 				"op_3_project_0_exceptions_total":   int64(0),
 				"op_3_project_0_process_latency_us": int64(0),
 				"op_3_project_0_records_in_total":   int64(2),
@@ -698,11 +662,6 @@ func TestSingleSQLOmitError(t *testing.T) {
 				{{}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_ldemo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_ldemo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_ldemo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_ldemo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(1),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -757,11 +716,6 @@ func TestSingleSQLTemplate(t *testing.T) {
 				},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -816,11 +770,6 @@ func TestNoneSingleSQLTemplate(t *testing.T) {
 				[]byte("<div>results</div><ul><li>red - 1</li></ul>"),
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_demo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_demo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_demo_0_records_in_total":   int64(5),
-				"op_1_preprocessor_demo_0_records_out_total":  int64(5),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(5),
@@ -863,11 +812,6 @@ func TestSingleSQLForBinary(t *testing.T) {
 			},
 			W: 50,
 			M: map[string]interface{}{
-				"op_1_preprocessor_binDemo_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_binDemo_0_process_latency_us": int64(0),
-				"op_1_preprocessor_binDemo_0_records_in_total":   int64(1),
-				"op_1_preprocessor_binDemo_0_records_out_total":  int64(1),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(1),

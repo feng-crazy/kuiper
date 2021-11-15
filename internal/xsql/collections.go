@@ -15,7 +15,6 @@
 package xsql
 
 import (
-	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
 	"github.com/lf-edge/ekuiper/pkg/ast"
 	"sort"
@@ -28,8 +27,6 @@ import (
 
 type AggregateData interface {
 	AggregateEval(expr ast.Expr, v CallValuer) []interface{}
-	GetWindowStart() int64
-	GetWindowEnd() int64
 }
 
 // Message is a valuer that substitutes values for the mapped interface.
@@ -91,7 +88,7 @@ func (m Message) Meta(key string) (interface{}, bool) {
 }
 
 func (m Message) AppendAlias(k string, v interface{}) bool {
-	fmt.Printf("append alias %s:%v\n", k, v)
+	conf.Log.Debugf("append alias %s:%v\n", k, v)
 	return false
 }
 
@@ -165,14 +162,6 @@ func (t *Tuple) AggregateEval(expr ast.Expr, v CallValuer) []interface{} {
 	return []interface{}{Eval(expr, MultiValuer(t, v, &WildcardValuer{t}))}
 }
 
-func (t *Tuple) GetWindowStart() int64 {
-	return 0
-}
-
-func (t *Tuple) GetWindowEnd() int64 {
-	return 0
-}
-
 func (t *Tuple) GetTimestamp() int64 {
 	return t.Timestamp
 }
@@ -212,17 +201,36 @@ type WindowTuples struct {
 	Tuples  []Tuple
 }
 
+type WindowRangeValuer struct {
+	*WindowRange
+}
+
+func (r *WindowRangeValuer) Value(_ string) (interface{}, bool) {
+	return nil, false
+}
+
+func (r *WindowRangeValuer) Meta(_ string) (interface{}, bool) {
+	return nil, false
+}
+
+func (r *WindowRangeValuer) AppendAlias(_ string, _ interface{}) bool {
+	return false
+}
+
 type WindowRange struct {
 	WindowStart int64
 	WindowEnd   int64
 }
 
-func (r *WindowRange) GetWindowStart() int64 {
-	return r.WindowStart
-}
-
-func (r *WindowRange) GetWindowEnd() int64 {
-	return r.WindowEnd
+func (r *WindowRange) FuncValue(key string) (interface{}, bool) {
+	switch key {
+	case "window_start":
+		return r.WindowStart, true
+	case "window_end":
+		return r.WindowEnd, true
+	default:
+		return nil, false
+	}
 }
 
 type WindowTuplesSet struct {

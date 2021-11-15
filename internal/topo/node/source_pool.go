@@ -17,6 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/lf-edge/ekuiper/internal/binder/io"
 	"github.com/lf-edge/ekuiper/internal/conf"
 	kctx "github.com/lf-edge/ekuiper/internal/topo/context"
 	"github.com/lf-edge/ekuiper/pkg/api"
@@ -38,13 +39,18 @@ func getSourceInstance(node *SourceNode, index int) (*sourceInstance, error) {
 		rkey := fmt.Sprintf("%s.%s", node.sourceType, node.name)
 		s, ok := pool.load(rkey)
 		if !ok {
-			ns, err := getSource(node.sourceType)
-			if err != nil {
-				return nil, err
-			}
-			s, err = pool.addInstance(rkey, node, ns, index)
-			if err != nil {
-				return nil, err
+			ns, err := io.Source(node.sourceType)
+			if ns != nil {
+				s, err = pool.addInstance(rkey, node, ns, index)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				if err != nil {
+					return nil, err
+				} else {
+					return nil, fmt.Errorf("source %s not found", node.sourceType)
+				}
 			}
 		}
 		// attach
@@ -59,15 +65,19 @@ func getSourceInstance(node *SourceNode, index int) (*sourceInstance, error) {
 			sourceInstanceChannels: s.outputs[instanceKey],
 		}
 	} else {
-		ns, err := getSource(node.sourceType)
-		if err != nil {
-			return nil, err
+		ns, err := io.Source(node.sourceType)
+		if ns != nil {
+			si, err = start(nil, node, ns, index)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			if err != nil {
+				return nil, err
+			} else {
+				return nil, fmt.Errorf("source %s not found", node.sourceType)
+			}
 		}
-		si, err = start(nil, node, ns, index)
-		if err != nil {
-			return nil, err
-		}
-
 	}
 	return si, nil
 }
@@ -195,22 +205,19 @@ func (ss *sourceSingleton) run(name, key string) {
 
 func (ss *sourceSingleton) broadcast(val api.SourceTuple) {
 	logger := ss.ctx.GetLogger()
-	var wg sync.WaitGroup
 	ss.RLock()
-	wg.Add(len(ss.outputs))
 	for n, out := range ss.outputs {
-		go func(name string, output chan<- api.SourceTuple) {
+		go func(name string, dataCh *DynamicChannelBuffer) {
 			select {
-			case output <- val:
+			case dataCh.Out <- val:
 				logger.Debugf("broadcast from source pool to %s done", name)
 			case <-ss.ctx.Done():
-				// rule stop so stop waiting
+			case <-dataCh.done:
+				// detached
 			}
-			wg.Done()
-		}(n, out.dataCh.Out)
+		}(n, out.dataCh)
 	}
 	ss.RUnlock()
-	wg.Wait()
 }
 
 func (ss *sourceSingleton) broadcastError(err error) {
@@ -255,6 +262,7 @@ func (ss *sourceSingleton) detach(instanceKey string) bool {
 	} else {
 		// should not happen
 		ss.ctx.GetLogger().Warnf("detach source instance %s, not found", instanceKey)
+		return false
 	}
 	delete(ss.outputs, instanceKey)
 	if len(ss.outputs) == 0 {

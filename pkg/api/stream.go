@@ -25,22 +25,22 @@ type SourceTuple interface {
 }
 
 type DefaultSourceTuple struct {
-	message map[string]interface{}
-	meta    map[string]interface{}
+	Mess map[string]interface{} `json:"message"`
+	M    map[string]interface{} `json:"meta"`
 }
 
 func NewDefaultSourceTuple(message map[string]interface{}, meta map[string]interface{}) *DefaultSourceTuple {
 	return &DefaultSourceTuple{
-		message: message,
-		meta:    meta,
+		Mess: message,
+		M:    meta,
 	}
 }
 
 func (t *DefaultSourceTuple) Message() map[string]interface{} {
-	return t.message
+	return t.Mess
 }
 func (t *DefaultSourceTuple) Meta() map[string]interface{} {
-	return t.meta
+	return t.M
 }
 
 type Logger interface {
@@ -143,12 +143,19 @@ type StreamContext interface {
 	WithInstance(instanceId int) StreamContext
 	WithCancel() (StreamContext, context.CancelFunc)
 	SetError(e error)
-	//State handling
+	// State handling
 	IncrCounter(key string, amount int) error
 	GetCounter(key string) (int, error)
 	PutState(key string, value interface{}) error
 	GetState(key string) (interface{}, error)
 	DeleteState(key string) error
+	// Connection related methods
+	GetConnection(connectSelector string) (interface{}, error)
+	ReleaseConnection(connectSelector string)
+	// Properties processing, prop is a json path
+	ParseDynamicProp(prop string, data interface{}) (interface{}, error)
+	// Transform output according to the properties like syntax
+	TransformOutput() ([]byte, bool, error)
 }
 
 type Operator interface {

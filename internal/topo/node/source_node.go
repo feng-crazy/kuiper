@@ -16,8 +16,6 @@ package node
 
 import (
 	"github.com/lf-edge/ekuiper/internal/conf"
-	"github.com/lf-edge/ekuiper/internal/plugin"
-	"github.com/lf-edge/ekuiper/internal/topo/source"
 	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/ast"
@@ -34,9 +32,10 @@ type SourceNode struct {
 	props        map[string]interface{}
 	mutex        sync.RWMutex
 	sources      []api.Source
+	preprocessOp UnOperation
 }
 
-func NewSourceNode(name string, st ast.StreamType, options *ast.Options) *SourceNode {
+func NewSourceNode(name string, st ast.StreamType, op UnOperation, options *ast.Options, sendError bool) *SourceNode {
 	t := options.TYPE
 	if t == "" {
 		if st == ast.TypeStream {
@@ -52,8 +51,10 @@ func NewSourceNode(name string, st ast.StreamType, options *ast.Options) *Source
 			name:        name,
 			outputs:     make(map[string]chan<- interface{}),
 			concurrency: 1,
+			sendError:   sendError,
 		},
-		options: options,
+		preprocessOp: op,
+		options:      options,
 	}
 }
 
@@ -133,10 +134,20 @@ func (m *SourceNode) Open(ctx api.StreamContext, errCh chan<- error) {
 						stats.IncTotalRecordsIn()
 						stats.ProcessTimeStart()
 						tuple := &xsql.Tuple{Emitter: m.name, Message: data.Message(), Timestamp: conf.GetNowInMilli(), Metadata: data.Meta()}
+						processedData := m.preprocessOp.Apply(ctx, tuple, nil, nil)
 						stats.ProcessTimeEnd()
 						logger.Debugf("source node %s is sending tuple %+v of timestamp %d", m.name, tuple, tuple.Timestamp)
 						//blocking
-						m.Broadcast(tuple)
+						switch val := processedData.(type) {
+						case nil:
+							continue
+						case error:
+							logger.Errorf("Source %s preprocess error: %s", ctx.GetOpId(), val)
+							m.Broadcast(val)
+							stats.IncTotalExceptions()
+						default:
+							m.Broadcast(val)
+						}
 						stats.IncTotalRecordsOut()
 						stats.SetBufferLength(int64(buffer.GetLength()))
 						if rw, ok := si.source.(api.Rewindable); ok {
@@ -160,27 +171,6 @@ func (m *SourceNode) Open(ctx api.StreamContext, errCh chan<- error) {
 
 func (m *SourceNode) reset() {
 	m.statManagers = nil
-}
-
-func doGetSource(t string) (api.Source, error) {
-	var (
-		s   api.Source
-		err error
-	)
-	switch t {
-	case "mqtt":
-		s = &source.MQTTSource{}
-	case "httppull":
-		s = &source.HTTPPullSource{}
-	case "file":
-		s = &source.FileSource{}
-	default:
-		s, err = plugin.GetSource(t)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return s, nil
 }
 
 func (m *SourceNode) drainError(errCh chan<- error, err error, ctx api.StreamContext, logger api.Logger) {

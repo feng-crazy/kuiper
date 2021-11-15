@@ -49,7 +49,7 @@ type RuleTest struct {
 	W    int                    // wait time for each data sending, in milli
 }
 
-func compareMetrics(tp *topo.Topo, m map[string]interface{}) (err error) {
+func CompareMetrics(tp *topo.Topo, m map[string]interface{}) (err error) {
 	keys, values := tp.GetMetrics()
 	for k, v := range m {
 		var (
@@ -91,13 +91,13 @@ func compareMetrics(tp *topo.Topo, m map[string]interface{}) (err error) {
 	return nil
 }
 
-func commonResultFunc(result [][]byte) interface{} {
+func CommonResultFunc(result [][]byte) interface{} {
 	var maps [][]map[string]interface{}
 	for _, v := range result {
 		var mapRes []map[string]interface{}
 		err := json.Unmarshal(v, &mapRes)
 		if err != nil {
-			panic("Failed to parse the input into map")
+			panic(fmt.Sprintf("Failed to parse the input %v into map", string(v)))
 		}
 		maps = append(maps, mapRes)
 	}
@@ -105,7 +105,7 @@ func commonResultFunc(result [][]byte) interface{} {
 }
 
 func DoRuleTest(t *testing.T, tests []RuleTest, j int, opt *api.RuleOption, wait int) {
-	doRuleTestBySinkProps(t, tests, j, opt, wait, nil, commonResultFunc)
+	doRuleTestBySinkProps(t, tests, j, opt, wait, nil, CommonResultFunc)
 }
 
 func doRuleTestBySinkProps(t *testing.T, tests []RuleTest, j int, opt *api.RuleOption, w int, sinkProps map[string]interface{}, resultFunc func(result [][]byte) interface{}) {
@@ -161,7 +161,7 @@ func compareResult(t *testing.T, mockSink *mocknode.MockSink, resultFunc func(re
 	if !reflect.DeepEqual(tt.R, maps) {
 		t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.Sql, tt.R, maps)
 	}
-	if err := compareMetrics(tp, tt.M); err != nil {
+	if err := CompareMetrics(tp, tt.M); err != nil {
 		t.Errorf("%d. %q\n\nmetrics mismatch:\n\n%s\n\n", i, tt.Sql, err)
 	}
 	if tt.T != nil {
@@ -207,7 +207,7 @@ func sendData(t *testing.T, dataLength int, metrics map[string]interface{}, data
 	time.Sleep(10 * time.Millisecond)
 	var retry int
 	for retry = 4; retry > 0; retry-- {
-		if err := compareMetrics(tp, metrics); err == nil {
+		if err := CompareMetrics(tp, metrics); err == nil {
 			break
 		} else {
 			conf.Log.Errorf("check metrics error at %d: %s", retry, err)
@@ -331,9 +331,11 @@ func HandleStream(createOrDrop bool, names []string, t *testing.T) {
 				sql = `CREATE STREAM lsessionDemo (
 				) WITH (DATASOURCE="lsessionDemo", TYPE="mock", FORMAT="json");`
 			case "ext":
-				sql = "CREATE STREAM ext (count bigint) WITH (DATASOURCE=\"ext\", TYPE=\"mock\", FORMAT=\"JSON\", TYPE=\"random\", CONF_KEY=\"ext\")"
+				sql = "CREATE STREAM ext (count bigint) WITH (DATASOURCE=\"ext\", FORMAT=\"JSON\", TYPE=\"random\", CONF_KEY=\"ext\")"
 			case "ext2":
-				sql = "CREATE STREAM ext2 (count bigint) WITH (DATASOURCE=\"ext2\", TYPE=\"mock\", FORMAT=\"JSON\", TYPE=\"random\", CONF_KEY=\"dedup\")"
+				sql = "CREATE STREAM ext2 (count bigint) WITH (DATASOURCE=\"ext2\", FORMAT=\"JSON\", TYPE=\"random\", CONF_KEY=\"dedup\")"
+			case "extpy":
+				sql = "CREATE STREAM extpy (name string, value bigint) WITH (FORMAT=\"JSON\", TYPE=\"pyjson\", CONF_KEY=\"ext\")"
 			case "text":
 				sql = "CREATE STREAM text (slogan string, brand string) WITH (DATASOURCE=\"text\", TYPE=\"mock\", FORMAT=\"JSON\")"
 			case "binDemo":
@@ -439,7 +441,7 @@ func DoCheckpointRuleTest(t *testing.T, tests []RuleCheckpointTest, j int, opt *
 			t.Errorf("second phase send data error %s", err)
 			break
 		}
-		compareResult(t, mockSink, commonResultFunc, tt.RuleTest, i, tp)
+		compareResult(t, mockSink, CommonResultFunc, tt.RuleTest, i, tp)
 	}
 }
 

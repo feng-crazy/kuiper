@@ -15,12 +15,17 @@
 package server
 
 import (
+	"github.com/lf-edge/ekuiper/internal/binder"
+	"github.com/lf-edge/ekuiper/internal/binder/function"
+	"github.com/lf-edge/ekuiper/internal/binder/io"
+	"github.com/lf-edge/ekuiper/internal/binder/meta"
 	"github.com/lf-edge/ekuiper/internal/conf"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
-	"github.com/lf-edge/ekuiper/internal/plugin"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
+	"github.com/lf-edge/ekuiper/internal/plugin/native"
+	"github.com/lf-edge/ekuiper/internal/plugin/portable"
+	"github.com/lf-edge/ekuiper/internal/plugin/portable/runtime"
 	"github.com/lf-edge/ekuiper/internal/processor"
 	"github.com/lf-edge/ekuiper/internal/service"
-	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"context"
@@ -34,14 +39,11 @@ import (
 )
 
 var (
-	dataDir         string
 	logger          = conf.Log
 	startTimeStamp  int64
 	version         = ""
 	ruleProcessor   *processor.RuleProcessor
 	streamProcessor *processor.StreamProcessor
-	pluginManager   *plugin.Manager
-	serviceManager  *service.Manager
 )
 
 func StartUp(Version, LoadFileType string) {
@@ -50,30 +52,41 @@ func StartUp(Version, LoadFileType string) {
 	startTimeStamp = time.Now().Unix()
 	conf.InitConf()
 
-	dr, err := conf.GetDataLoc()
-	if err != nil {
-		panic(err)
-	} else {
-		logger.Infof("db location is %s", dr)
-		dataDir = dr
-	}
-
-	err = sqlkv.Setup(dataDir)
+	err := store.SetupWithKuiperConfig(conf.Config)
 	if err != nil {
 		panic(err)
 	}
 
 	ruleProcessor = processor.NewRuleProcessor()
 	streamProcessor = processor.NewStreamProcessor()
-	pluginManager, err = plugin.NewPluginManager()
+
+	// Bind the source, function, sink
+	nativeManager, err := native.InitManager()
 	if err != nil {
 		panic(err)
 	}
-	serviceManager, err = service.GetServiceManager()
+	portableManager, err := portable.InitManager()
 	if err != nil {
 		panic(err)
 	}
-	xsql.InitFuncRegisters(serviceManager, pluginManager)
+	serviceManager, err := service.InitManager()
+	if err != nil {
+		panic(err)
+	}
+	entries := []binder.FactoryEntry{
+		{Name: "native plugin", Factory: nativeManager},
+		{Name: "portable plugin", Factory: portableManager},
+		{Name: "external service", Factory: serviceManager},
+	}
+	err = function.Initialize(entries)
+	if err != nil {
+		panic(err)
+	}
+	err = io.Initialize(entries)
+	if err != nil {
+		panic(err)
+	}
+	meta.Bind()
 
 	registry = &RuleRegistry{internal: make(map[string]*RuleState)}
 
@@ -120,7 +133,7 @@ func StartUp(Version, LoadFileType string) {
 	}
 
 	//Start rest service
-	srvRest := createRestServer(conf.Config.Basic.RestIp, conf.Config.Basic.RestPort)
+	srvRest := createRestServer(conf.Config.Basic.RestIp, conf.Config.Basic.RestPort, conf.Config.Basic.Authentication)
 	go func() {
 		var err error
 		if conf.Config.Basic.RestTls == nil {
@@ -168,6 +181,8 @@ func StartUp(Version, LoadFileType string) {
 	signal.Notify(sigint, os.Interrupt, syscall.SIGTERM)
 	<-sigint
 
+	runtime.GetPluginInsManager().KillAll()
+
 	if err = srvRpc.Shutdown(context.TODO()); err != nil {
 		logger.Errorf("rpc server shutdown error: %v", err)
 	}
@@ -185,6 +200,5 @@ func StartUp(Version, LoadFileType string) {
 		logger.Info("prometheus server successfully shutdown.")
 	}
 
-	sqlkv.Close()
 	os.Exit(0)
 }

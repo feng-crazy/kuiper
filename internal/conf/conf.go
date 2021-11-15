@@ -19,34 +19,18 @@ import (
 	"github.com/lestrrat-go/file-rotatelogs"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
 )
 
-const StreamConf = "kuiper.yaml"
+const ConfFileName = "kuiper.yaml"
 
 var (
 	Config    *KuiperConf
 	IsTesting bool
 )
-
-func LoadConf(confName string) ([]byte, error) {
-	confDir, err := GetConfLoc()
-	if err != nil {
-		return nil, err
-	}
-
-	file := path.Join(confDir, confName)
-	b, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
 
 type tlsConf struct {
 	Certfile string `yaml:"certfile"`
@@ -68,21 +52,33 @@ type KuiperConf struct {
 		Prometheus     bool     `yaml:"prometheus"`
 		PrometheusPort int      `yaml:"prometheusPort"`
 		PluginHosts    string   `yaml:"pluginHosts"`
+		Authentication bool     `yaml:"authentication"`
 	}
 	Rule api.RuleOption
 	Sink struct {
 		CacheThreshold    int  `yaml:"cacheThreshold"`
 		CacheTriggerCount int  `yaml:"cacheTriggerCount"`
-		DisableCache      bool `yaml:"disableCache""`
+		DisableCache      bool `yaml:"disableCache"`
+	}
+	Store struct {
+		Type  string `yaml:"type"`
+		Redis struct {
+			Host     string `yaml:"host"`
+			Port     int    `yaml:"port"`
+			Password string `yaml:"password"`
+			Timeout  int    `yaml:"timeout"`
+		}
+		Sqlite struct {
+			Name string `yaml:"name"`
+		}
 	}
 }
 
 func InitConf() {
-	b, err := LoadConf(StreamConf)
+	cpath, err := GetConfLoc()
 	if err != nil {
-		Log.Fatal(err)
+		panic(err)
 	}
-
 	kc := KuiperConf{
 		Rule: api.RuleOption{
 			LateTol:            1000,
@@ -92,11 +88,13 @@ func InitConf() {
 			SendError:          true,
 		},
 	}
-	if err := yaml.Unmarshal(b, &kc); err != nil {
+
+	err = LoadConfigFromPath(path.Join(cpath, ConfFileName), &kc)
+	if err != nil {
 		Log.Fatal(err)
-	} else {
-		Config = &kc
+		panic(err)
 	}
+	Config = &kc
 	if 0 == len(Config.Basic.Ip) {
 		Config.Basic.Ip = "0.0.0.0"
 	}

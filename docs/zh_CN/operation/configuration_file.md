@@ -45,6 +45,15 @@ REST http 服务器监听端口
 ### restTls
 TLS 证书 cert 文件和 key 文件位置。如果 restTls 选项未配置，则 REST 服务器将启动为 http 服务器，否则启动为 https 服务器。
 
+## authentication 
+当 ``authentication`` 选项为 true 时，eKuiper 将为 rest api 请求检查 ``Token`` 。请检查此文件以获取 [更多信息](./operations.md)。
+
+```yaml
+basic:
+  authentication: false
+```
+
+
 ## Prometheus 配置
 
 如果 `prometheus` 参数设置为 true，eKuiper 将把运行指标暴露到 prometheus。Prometheus 将运行在 `prometheusPort` 参数指定的端口上。
@@ -138,3 +147,36 @@ http://host:port/kuiper-plugins/0.9.1/alpine/functions
   disableCache: false
 ```
 
+## 存储配置
+
+可通过配置修改创建的流和规则等状态的存储方式。默认情况下，程序状态存储在 sqlite 数据库中。把存储类型改成 redis，可使用 redis 作为存储方式。
+
+### Sqlite
+
+可配置如下属性：
+* name - 数据库文件名。若为空，则设置为默认名字`sqliteKV.db`。
+
+### Redis
+
+可配置如下属性：
+* host     - redis 服务器地址。
+* port     - redis 服务器端口。
+* password - redis 服务器密码。若 redis 未配置认证系统，则可不设置密码。
+* timeout  - 连接超时时间。
+
+### 配置示例
+
+```yaml
+    store:
+      #Type of store that will be used for keeping state of the application
+      type: sqlite
+      redis:
+        host: localhost
+        port: 6379
+        password: kuiper
+        #Timeout in ms
+        timeout: 1000
+      sqlite:
+        #Sqlite file name, if left empty name of db will be sqliteKV.db
+        name:
+```

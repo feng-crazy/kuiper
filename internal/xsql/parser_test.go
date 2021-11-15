@@ -1241,7 +1241,7 @@ func TestParser_ParseStatement(t *testing.T) {
 		{
 			s:    `SELECT sample(-.3,) FROM tbl`,
 			stmt: nil,
-			err:  "error getting function sample: not found",
+			err:  "function sample not found",
 		},
 
 		{
@@ -1430,6 +1430,27 @@ func TestParser_ParseStatement(t *testing.T) {
 			s:    `SELECT -abc FROM demo`,
 			stmt: nil,
 			err:  "found \"-\", expected expression.",
+		},
+		{
+			s: `SELECT meta(*) FROM tbl`,
+			stmt: &ast.SelectStatement{
+				Fields: []ast.Field{
+					{
+						AName: "",
+						Name:  "meta",
+						Expr: &ast.Call{
+							Name: "meta",
+							Args: []ast.Expr{
+								&ast.MetaRef{
+									Name:       "*",
+									StreamName: ast.DefaultStream,
+								},
+							},
+						},
+					},
+				},
+				Sources: []ast.Source{&ast.Table{Name: "tbl"}},
+			},
 		},
 	}
 
@@ -1718,7 +1739,7 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 								RHS: &ast.IndexExpr{Index: &ast.IntegerLiteral{Val: 0}},
 							},
 							OP:  ast.ARROW,
-							RHS: &ast.FieldRef{Name: "first"},
+							RHS: &ast.JsonFieldRef{Name: "first"},
 						},
 
 						Name:  "",
@@ -1737,7 +1758,7 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 							LHS: &ast.BinaryExpr{
 								LHS: &ast.FieldRef{Name: "children", StreamName: ast.DefaultStream},
 								OP:  ast.ARROW,
-								RHS: &ast.FieldRef{Name: "first"},
+								RHS: &ast.JsonFieldRef{Name: "first"},
 							},
 							OP:  ast.SUBSET,
 							RHS: &ast.IndexExpr{Index: &ast.IntegerLiteral{Val: 2}},
@@ -1760,13 +1781,13 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 								LHS: &ast.BinaryExpr{
 									LHS: &ast.FieldRef{Name: "children", StreamName: ast.DefaultStream},
 									OP:  ast.ARROW,
-									RHS: &ast.FieldRef{Name: "first"},
+									RHS: &ast.JsonFieldRef{Name: "first"},
 								},
 								OP:  ast.SUBSET,
 								RHS: &ast.IndexExpr{Index: &ast.IntegerLiteral{Val: 2}},
 							},
 							OP:  ast.ARROW,
-							RHS: &ast.FieldRef{Name: "test"},
+							RHS: &ast.JsonFieldRef{Name: "test"},
 						},
 
 						Name:  "",
@@ -1852,7 +1873,7 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 						Expr: &ast.BinaryExpr{
 							LHS: &ast.BinaryExpr{LHS: &ast.FieldRef{Name: "children", StreamName: ast.DefaultStream}, OP: ast.SUBSET, RHS: &ast.ColonExpr{Start: &ast.IntegerLiteral{Val: 2}, End: &ast.IntegerLiteral{Val: math.MinInt32}}},
 							OP:  ast.ARROW,
-							RHS: &ast.FieldRef{Name: "first"},
+							RHS: &ast.JsonFieldRef{Name: "first"},
 						},
 						Name:  "",
 						AName: "c"},
@@ -1882,7 +1903,7 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 						Expr: &ast.BinaryExpr{
 							LHS: &ast.BinaryExpr{LHS: &ast.FieldRef{StreamName: ast.StreamName("demo"), Name: "children"}, OP: ast.SUBSET, RHS: &ast.ColonExpr{Start: &ast.IntegerLiteral{Val: 2}, End: &ast.IntegerLiteral{Val: math.MinInt32}}},
 							OP:  ast.ARROW,
-							RHS: &ast.FieldRef{Name: "first"},
+							RHS: &ast.JsonFieldRef{Name: "first"},
 						},
 						Name:  "",
 						AName: "c"},
@@ -1902,7 +1923,7 @@ func TestParser_ParseJsonExpr(t *testing.T) {
 								&ast.BinaryExpr{
 									LHS: &ast.BinaryExpr{LHS: &ast.FieldRef{StreamName: ast.StreamName("demo"), Name: "children"}, OP: ast.SUBSET, RHS: &ast.ColonExpr{Start: &ast.IntegerLiteral{Val: 2}, End: &ast.IntegerLiteral{Val: math.MinInt32}}},
 									OP:  ast.ARROW,
-									RHS: &ast.FieldRef{Name: "first"},
+									RHS: &ast.JsonFieldRef{Name: "first"},
 								},
 							},
 						},

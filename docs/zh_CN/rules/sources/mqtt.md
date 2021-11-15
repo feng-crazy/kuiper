@@ -35,11 +35,11 @@ MQTT 消息代理的服务器列表。 当前，只能指定一个服务器。
 
 ### username
 
-MQTT 连接用户名。如果指定了 `certificationPath`  或者 `privateKeyPath`，那么该项配置不会被使用。
+MQTT 连接用户名。
 
 ### password
 
-MQTT 连接密码。如果指定了 `certificationPath` 或者 `privateKeyPath`，那么该项配置不会被使用。
+MQTT 连接密码。
 
 ### certificationPath
 
@@ -48,6 +48,51 @@ MQTT 连接密码。如果指定了 `certificationPath` 或者 `privateKeyPath`�
 ### privateKeyPath
 
 私钥路径。可以为绝对路径，也可以为相对路径。更详细的信息，请参考 `certificationPath`，比如 `d3807d9fa5-private.pem.key`。
+
+### rootCaPath
+
+根证书路径。可以为绝对路径，也可以为相对路径。.
+
+### insecureSkipVerify
+
+如果 InsecureSkipVerify 设置为 true, TLS接受服务器提供的任何证书以及该证书中的任何主机名。 在这种模式下，TLS容易受到中间人攻击。默认值为false。配置项只能用于TLS连接
+
+### connectionSelector
+
+复用 MQTT 源连接。连接配置信息位于 ``connections/connection.yaml``.
+```yaml
+mqtt:
+  localConnection: #connection key
+    servers: [tcp://127.0.0.1:1883]
+    username: ekuiper
+    password: password
+    #certificationPath: /var/kuiper/xyz-certificate.pem
+    #privateKeyPath: /var/kuiper/xyz-private.pem.ke
+    #insecureSkipVerify: false
+    #protocolVersion: 3
+    clientid: ekuiper
+  cloudConnection: #connection key
+    servers: ["tcp://broker.emqx.io:1883"]
+    username: user1
+    password: password
+    #certificationPath: /var/kuiper/xyz-certificate.pem
+    #privateKeyPath: /var/kuiper/xyz-private.pem.ke
+    #insecureSkipVerify: false
+    #protocolVersion: 3
+```
+对于 MQTT 连接，这里有两个配置组。用户应该使用 ``mqtt.localConnection`` 或者 ``mqtt.cloudConnection`` 来作为参数。举例如下：
+```yaml
+#Global MQTT configurations
+default:
+  qos: 1
+  servers: [tcp://127.0.0.1:1883]
+  #username: user1
+  #password: password
+  #certificationPath: /var/kuiper/xyz-certificate.pem
+  #privateKeyPath: /var/kuiper/xyz-private.pem.key
+  connectionSelector: mqtt.localConnection
+```
+*注意*: 相应配置组一旦指定 connectionSelector 参数，所有关于连接的参数都会被忽略. 上面例子中，`` servers: [tcp://127.0.0.1:1883]`` 会被忽略。
 
 ### bufferLength
 

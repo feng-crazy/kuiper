@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
+	store2 "github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/internal/topo"
 	"github.com/lf-edge/ekuiper/internal/topo/node"
 	"github.com/lf-edge/ekuiper/internal/topo/operator"
@@ -49,7 +49,7 @@ func PlanWithSourcesAndSinks(rule *api.Rule, sources []*node.SourceNode, sinks [
 	if rule.Options.SendMetaToSink && (len(streamsFromStmt) > 1 || stmt.Dimensions != nil) {
 		return nil, fmt.Errorf("Invalid option sendMetaToSink, it can not be applied to window")
 	}
-	store, err := sqlkv.GetKVStore("stream")
+	err, store := store2.GetKV("stream")
 	if err != nil {
 		return nil, err
 	}
@@ -110,21 +110,21 @@ func buildOps(lp LogicalPlan, tp *topo.Topo, options *api.RuleOption, sources []
 	}
 	newIndex++
 	var (
-		op  node.OperatorNode
+		op  api.Emitter
 		err error
 	)
 	switch t := lp.(type) {
 	case *DataSourcePlan:
 		switch t.streamStmt.StreamType {
 		case ast.TypeStream:
-			pp, err := operator.NewPreprocessor(t.streamFields, t.allMeta, t.metaFields, t.iet, t.timestampField, t.timestampFormat, t.isBinary)
+			pp, err := operator.NewPreprocessor(t.streamFields, t.allMeta, t.metaFields, t.iet, t.timestampField, t.timestampFormat, t.isBinary, t.streamStmt.Options.STRICT_VALIDATION)
 			if err != nil {
 				return nil, 0, err
 			}
 			var srcNode *node.SourceNode
 			if len(sources) == 0 {
-				node := node.NewSourceNode(string(t.name), t.streamStmt.StreamType, t.streamStmt.Options)
-				srcNode = node
+				sourceNode := node.NewSourceNode(string(t.name), t.streamStmt.StreamType, pp, t.streamStmt.Options, options.SendError)
+				srcNode = sourceNode
 			} else {
 				srcNode = getMockSource(sources, string(t.name))
 				if srcNode == nil {
@@ -132,8 +132,8 @@ func buildOps(lp LogicalPlan, tp *topo.Topo, options *api.RuleOption, sources []
 				}
 			}
 			tp.AddSrc(srcNode)
-			op = Transform(pp, fmt.Sprintf("%d_preprocessor_%s", newIndex, t.name), options)
 			inputs = []api.Emitter{srcNode}
+			op = srcNode
 		case ast.TypeTable:
 			pp, err := operator.NewTableProcessor(string(t.name), t.streamFields, t.streamStmt.Options)
 			if err != nil {
@@ -144,11 +144,11 @@ func buildOps(lp LogicalPlan, tp *topo.Topo, options *api.RuleOption, sources []
 				srcNode = getMockSource(sources, string(t.name))
 			}
 			if srcNode == nil {
-				srcNode = node.NewSourceNode(string(t.name), t.streamStmt.StreamType, t.streamStmt.Options)
+				srcNode = node.NewSourceNode(string(t.name), t.streamStmt.StreamType, pp, t.streamStmt.Options, options.SendError)
 			}
 			tp.AddSrc(srcNode)
-			op = Transform(pp, fmt.Sprintf("%d_tableprocessor_%s", newIndex, t.name), options)
 			inputs = []api.Emitter{srcNode}
+			op = srcNode
 		}
 	case *WindowPlan:
 		if t.condition != nil {
@@ -186,7 +186,9 @@ func buildOps(lp LogicalPlan, tp *topo.Topo, options *api.RuleOption, sources []
 	if uop, ok := op.(*node.UnaryOperator); ok {
 		uop.SetConcurrency(options.Concurrency)
 	}
-	tp.AddOperator(inputs, op)
+	if onode, ok := op.(node.OperatorNode); ok {
+		tp.AddOperator(inputs, onode)
+	}
 	return op, newIndex, nil
 }
 
@@ -266,7 +268,7 @@ func createLogicalPlan(stmt *ast.SelectStatement, opt *api.RuleOption, store kv.
 			p.SetChildren(append(children, tableChildren...))
 			children = []LogicalPlan{p}
 		} else if w == nil {
-			return nil, errors.New("need to run stream join in windows")
+			return nil, errors.New("a time window or count window is required to join multiple streams")
 		}
 		// TODO extract on filter
 		p = JoinPlan{
@@ -314,7 +316,7 @@ func createLogicalPlan(stmt *ast.SelectStatement, opt *api.RuleOption, store kv.
 	if stmt.Fields != nil {
 		p = ProjectPlan{
 			fields:      stmt.Fields,
-			isAggregate: ast.IsAggStatement(stmt),
+			isAggregate: xsql.IsAggStatement(stmt),
 			sendMeta:    opt.SendMetaToSink,
 		}.Init()
 		p.SetChildren(children)
@@ -324,7 +326,7 @@ func createLogicalPlan(stmt *ast.SelectStatement, opt *api.RuleOption, store kv.
 }
 
 func Transform(op node.UnOperation, name string, options *api.RuleOption) *node.UnaryOperator {
-	operator := node.New(name, xsql.FuncRegisters, options)
-	operator.SetOperation(op)
-	return operator
+	unaryOperator := node.New(name, options)
+	unaryOperator.SetOperation(op)
+	return unaryOperator
 }

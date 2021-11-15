@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gdexlab/go-render/render"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/internal/testx"
 	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/lf-edge/ekuiper/pkg/api"
@@ -33,7 +33,7 @@ func init() {
 }
 
 func Test_createLogicalPlan(t *testing.T) {
-	store, err := sqlkv.GetKVStore("stream")
+	err, store := store.GetKV("stream")
 	if err != nil {
 		t.Error(err)
 		return
@@ -42,12 +42,13 @@ func Test_createLogicalPlan(t *testing.T) {
 		"src1": `CREATE STREAM src1 (
 					id1 BIGINT,
 					temp BIGINT,
-					name string
+					name string,
+					myarray array(string)
 				) WITH (DATASOURCE="src1", FORMAT="json", KEY="ts");`,
 		"src2": `CREATE STREAM src2 (
 					id2 BIGINT,
 					hum BIGINT
-				) WITH (DATASOURCE="src2", FORMAT="json", KEY="ts");`,
+				) WITH (DATASOURCE="src2", FORMAT="json", KEY="ts", TIMESTAMP_FORMAT="YYYY-MM-dd HH:mm:ss");`,
 		"tableInPlanner": `CREATE TABLE tableInPlanner (
 					id BIGINT,
 					name STRING,
@@ -69,7 +70,11 @@ func Test_createLogicalPlan(t *testing.T) {
 			t.Error(err)
 			t.Fail()
 		}
-		store.Set(name, string(s))
+		err = store.Set(name, string(s))
+		if err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 	}
 	streams := make(map[string]*ast.StreamStmt)
 	for n := range streamSqls {
@@ -92,7 +97,7 @@ func Test_createLogicalPlan(t *testing.T) {
 		err string
 	}{
 		{ // 0
-			sql: `SELECT name FROM src1`,
+			sql: `SELECT myarray[temp] FROM src1`,
 			p: ProjectPlan{
 				baseLogicalPlan: baseLogicalPlan{
 					children: []LogicalPlan{
@@ -101,8 +106,12 @@ func Test_createLogicalPlan(t *testing.T) {
 							name:            "src1",
 							streamFields: []interface{}{
 								&ast.StreamField{
-									Name:      "name",
-									FieldType: &ast.BasicType{Type: ast.STRINGS},
+									Name:      "myarray",
+									FieldType: &ast.ArrayType{Type: ast.STRINGS},
+								},
+								&ast.StreamField{
+									Name:      "temp",
+									FieldType: &ast.BasicType{Type: ast.BIGINT},
 								},
 							},
 							streamStmt: streams["src1"],
@@ -112,8 +121,18 @@ func Test_createLogicalPlan(t *testing.T) {
 				},
 				fields: []ast.Field{
 					{
-						Expr:  &ast.FieldRef{Name: "name", StreamName: "src1"},
-						Name:  "name",
+						Expr: &ast.BinaryExpr{
+							OP: ast.SUBSET,
+							LHS: &ast.FieldRef{
+								StreamName: "src1",
+								Name:       "myarray",
+							},
+							RHS: &ast.IndexExpr{Index: &ast.FieldRef{
+								StreamName: "src1",
+								Name:       "temp",
+							}},
+						},
+						Name:  "kuiper_field_0",
 						AName: "",
 					},
 				},
@@ -211,8 +230,9 @@ func Test_createLogicalPlan(t *testing.T) {
 															FieldType: &ast.BasicType{Type: ast.BIGINT},
 														},
 													},
-													streamStmt: streams["src2"],
-													metaFields: []string{},
+													streamStmt:      streams["src2"],
+													metaFields:      []string{},
+													timestampFormat: "YYYY-MM-dd HH:mm:ss",
 												}.Init(),
 											},
 										},
@@ -357,6 +377,10 @@ func Test_createLogicalPlan(t *testing.T) {
 																		Name:      "name",
 																		FieldType: &ast.BasicType{Type: ast.STRINGS},
 																	},
+																	&ast.StreamField{
+																		Name:      "myarray",
+																		FieldType: &ast.ArrayType{Type: ast.STRINGS},
+																	},
 																},
 																streamStmt: streams["src1"],
 																metaFields: []string{},
@@ -458,8 +482,9 @@ func Test_createLogicalPlan(t *testing.T) {
 																		FieldType: &ast.BasicType{Type: ast.BIGINT},
 																	},
 																},
-																streamStmt: streams["src2"],
-																metaFields: []string{},
+																streamStmt:      streams["src2"],
+																metaFields:      []string{},
+																timestampFormat: "YYYY-MM-dd HH:mm:ss",
 															}.Init(),
 														},
 													},
@@ -555,8 +580,9 @@ func Test_createLogicalPlan(t *testing.T) {
 															FieldType: &ast.BasicType{Type: ast.BIGINT},
 														},
 													},
-													streamStmt: streams["src2"],
-													metaFields: []string{},
+													streamStmt:      streams["src2"],
+													metaFields:      []string{},
+													timestampFormat: "YYYY-MM-dd HH:mm:ss",
 												}.Init(),
 											},
 										},
@@ -893,7 +919,7 @@ func Test_createLogicalPlan(t *testing.T) {
 								&ast.BinaryExpr{
 									OP:  ast.ARROW,
 									LHS: &ast.MetaRef{Name: "Humidity", StreamName: ast.DefaultStream},
-									RHS: &ast.MetaRef{Name: "Device"},
+									RHS: &ast.JsonFieldRef{Name: "Device"},
 								},
 							}},
 							[]ast.StreamName{},
@@ -929,8 +955,9 @@ func Test_createLogicalPlan(t *testing.T) {
 															FieldType: &ast.BasicType{Type: ast.BIGINT},
 														},
 													},
-													streamStmt: streams["src2"],
-													metaFields: []string{},
+													streamStmt:      streams["src2"],
+													metaFields:      []string{},
+													timestampFormat: "YYYY-MM-dd HH:mm:ss",
 												}.Init(),
 												DataSourcePlan{
 													name: "tableInPlanner",
@@ -1021,6 +1048,65 @@ func Test_createLogicalPlan(t *testing.T) {
 				isAggregate: false,
 				sendMeta:    false,
 			}.Init(),
+		}, { // 12 meta with more fields
+			sql: `SELECT temp, meta(*) as m FROM src1 WHERE meta(device)="demo2"`,
+			p: ProjectPlan{
+				baseLogicalPlan: baseLogicalPlan{
+					children: []LogicalPlan{
+						FilterPlan{
+							baseLogicalPlan: baseLogicalPlan{
+								children: []LogicalPlan{
+									DataSourcePlan{
+										name: "src1",
+										streamFields: []interface{}{
+											&ast.StreamField{
+												Name:      "temp",
+												FieldType: &ast.BasicType{Type: ast.BIGINT},
+											},
+										},
+										streamStmt: streams["src1"],
+										metaFields: []string{},
+										allMeta:    true,
+									}.Init(),
+								},
+							},
+							condition: &ast.BinaryExpr{
+								LHS: &ast.Call{
+									Name: "meta",
+									Args: []ast.Expr{&ast.MetaRef{
+										Name:       "device",
+										StreamName: ast.DefaultStream,
+									}},
+								},
+								OP: ast.EQ,
+								RHS: &ast.StringLiteral{
+									Val: "demo2",
+								},
+							},
+						}.Init(),
+					},
+				},
+				fields: []ast.Field{
+					{
+						Expr:  &ast.FieldRef{Name: "temp", StreamName: "src1"},
+						Name:  "temp",
+						AName: "",
+					}, {
+						Expr: &ast.FieldRef{Name: "m", StreamName: ast.AliasStream, AliasRef: ast.MockAliasRef(
+							&ast.Call{Name: "meta", Args: []ast.Expr{&ast.MetaRef{
+								Name:       "*",
+								StreamName: ast.DefaultStream,
+							}}},
+							[]ast.StreamName{},
+							nil,
+						)},
+						Name:  "meta",
+						AName: "m",
+					},
+				},
+				isAggregate: false,
+				sendMeta:    false,
+			}.Init(),
 		},
 	}
 	fmt.Printf("The test bucket size is %d.\n\n", len(tests))
@@ -1050,7 +1136,7 @@ func Test_createLogicalPlan(t *testing.T) {
 }
 
 func Test_createLogicalPlanSchemaless(t *testing.T) {
-	store, err := sqlkv.GetKVStore("stream")
+	err, store := store.GetKV("stream")
 	if err != nil {
 		t.Error(err)
 		return
@@ -1081,7 +1167,11 @@ func Test_createLogicalPlanSchemaless(t *testing.T) {
 			t.Error(err)
 			t.Fail()
 		}
-		store.Set(name, string(s))
+		err = store.Set(name, string(s))
+		if err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 	}
 	streams := make(map[string]*ast.StreamStmt)
 	for n := range streamSqls {
@@ -1809,7 +1899,7 @@ func Test_createLogicalPlanSchemaless(t *testing.T) {
 								&ast.BinaryExpr{
 									OP:  ast.ARROW,
 									LHS: &ast.MetaRef{Name: "Humidity", StreamName: ast.DefaultStream},
-									RHS: &ast.MetaRef{Name: "Device"},
+									RHS: &ast.JsonFieldRef{Name: "Device"},
 								},
 							}},
 							[]ast.StreamName{},

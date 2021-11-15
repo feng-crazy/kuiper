@@ -22,9 +22,9 @@ eKuiper 允许用户自定义不同类型的扩展。
 
 请阅读以下内容，了解如何实现不同的扩展。
 
-- [源扩展](./source.md)
-- [Sink/Action 扩展](./sink.md)
-- [函数扩展](./function.md)
+- [源扩展](native/source.md)
+- [Sink/Action 扩展](native/sink.md)
+- [函数扩展](native/function.md)
 
 ## 命名
 
@@ -73,4 +73,4 @@ ctx.GetRootPath()
 
 以 getFeature 函数为例，假设有 AI 服务基于 grpc 提供getFeature 服务。则可在 eKuiper 配置之后，使用 `SELECT getFeature(self) from demo` 的方式，无需定制插件而调用该 AI 服务。
 
-详细配置方法，请参考[外部函数](external_func.md)。
+详细配置方法，请参考[外部函数](external/external_func.md)。

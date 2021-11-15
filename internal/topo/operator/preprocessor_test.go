@@ -533,6 +533,31 @@ func TestPreprocessor_Apply(t *testing.T) {
 				},
 			},
 			},
+		}, {
+			stmt: &ast.StreamStmt{
+				Name: ast.StreamName("demo"),
+				StreamFields: []ast.StreamField{
+					{Name: "a", FieldType: &ast.RecType{
+						StreamFields: []ast.StreamField{
+							{Name: "b", FieldType: &ast.BasicType{Type: ast.STRINGS}},
+						},
+					}},
+					{Name: "b", FieldType: &ast.BasicType{Type: ast.FLOAT}},
+					{Name: "c", FieldType: &ast.ArrayType{Type: ast.BIGINT}},
+				},
+				Options: &ast.Options{
+					STRICT_VALIDATION: false,
+				},
+			},
+			data: []byte(`{"a": {"d" : "hello"}}`),
+			result: &xsql.Tuple{Message: xsql.Message{
+				"a": map[string]interface{}{
+					"b": "",
+				},
+				"b": 0.0,
+				"c": []int(nil),
+			},
+			},
 		},
 	}
 
@@ -543,6 +568,11 @@ func TestPreprocessor_Apply(t *testing.T) {
 	ctx := context.WithValue(context.Background(), context.LoggerKey, contextLogger)
 	for i, tt := range tests {
 		pp := &Preprocessor{}
+		if tt.stmt.Options != nil {
+			pp.strictValidation = tt.stmt.Options.STRICT_VALIDATION
+		} else {
+			pp.strictValidation = true
+		}
 		pp.streamFields = convertFields(tt.stmt.StreamFields)
 
 		dm := make(map[string]interface{})
@@ -551,7 +581,7 @@ func TestPreprocessor_Apply(t *testing.T) {
 			return
 		} else {
 			tuple := &xsql.Tuple{Message: dm}
-			fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+			fv, afv := xsql.NewFunctionValuersForOp(nil)
 			result := pp.Apply(ctx, tuple, fv, afv)
 			if !reflect.DeepEqual(tt.result, result) {
 				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tuple, tt.result, result)
@@ -687,7 +717,7 @@ func TestPreprocessorTime_Apply(t *testing.T) {
 			return
 		} else {
 			tuple := &xsql.Tuple{Message: dm}
-			fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+			fv, afv := xsql.NewFunctionValuersForOp(nil)
 			result := pp.Apply(ctx, tuple, fv, afv)
 			//workaround make sure all the timezone are the same for time vars or the DeepEqual will be false.
 			if rt, ok := result.(*xsql.Tuple); ok {
@@ -877,7 +907,7 @@ func TestPreprocessorEventtime_Apply(t *testing.T) {
 			return
 		} else {
 			tuple := &xsql.Tuple{Message: dm}
-			fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+			fv, afv := xsql.NewFunctionValuersForOp(nil)
 			result := pp.Apply(ctx, tuple, fv, afv)
 			//workaround make sure all the timezone are the same for time vars or the DeepEqual will be false.
 			if rt, ok := result.(*xsql.Tuple); ok {
@@ -949,6 +979,7 @@ func TestPreprocessorError(t *testing.T) {
 	for i, tt := range tests {
 
 		pp := &Preprocessor{}
+		pp.strictValidation = true
 		pp.streamFields = convertFields(tt.stmt.StreamFields)
 		dm := make(map[string]interface{})
 		if e := json.Unmarshal(tt.data, &dm); e != nil {
@@ -956,7 +987,7 @@ func TestPreprocessorError(t *testing.T) {
 			return
 		} else {
 			tuple := &xsql.Tuple{Message: dm}
-			fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+			fv, afv := xsql.NewFunctionValuersForOp(nil)
 			result := pp.Apply(ctx, tuple, fv, afv)
 			if !reflect.DeepEqual(tt.result, result) {
 				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tuple, tt.result, result)
@@ -1087,7 +1118,7 @@ func TestPreprocessorForBinary(t *testing.T) {
 			return
 		} else {
 			tuple := &xsql.Tuple{Message: dm}
-			fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+			fv, afv := xsql.NewFunctionValuersForOp(nil)
 			result := pp.Apply(ctx, tuple, fv, afv)
 			if !reflect.DeepEqual(tt.result, result) {
 				t.Errorf("%d. %q\n\nresult mismatch", i, tuple)

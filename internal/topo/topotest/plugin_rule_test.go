@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !windows
 // +build !windows
 
 package topotest
@@ -20,30 +21,37 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/lf-edge/ekuiper/internal/binder"
+	"github.com/lf-edge/ekuiper/internal/binder/function"
+	"github.com/lf-edge/ekuiper/internal/binder/io"
 	"github.com/lf-edge/ekuiper/internal/conf"
-	"github.com/lf-edge/ekuiper/internal/plugin"
+	"github.com/lf-edge/ekuiper/internal/plugin/native"
 	"github.com/lf-edge/ekuiper/internal/topo/planner"
 	"github.com/lf-edge/ekuiper/internal/topo/topotest/mockclock"
-	"github.com/lf-edge/ekuiper/internal/xsql"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"os"
 	"testing"
 	"time"
 )
 
-var manager *plugin.Manager
-
 func init() {
-	var err error
-	manager, err = plugin.NewPluginManager()
+	nativeManager, err := native.InitManager()
 	if err != nil {
 		panic(err)
 	}
-	xsql.InitFuncRegisters(manager)
+	nativeEntry := binder.FactoryEntry{Name: "native plugin", Factory: nativeManager}
+	err = function.Initialize([]binder.FactoryEntry{nativeEntry})
+	if err != nil {
+		panic(err)
+	}
+	err = io.Initialize([]binder.FactoryEntry{nativeEntry})
+	if err != nil {
+		panic(err)
+	}
 }
 
 //This cannot be run in Windows. And the plugins must be built to so before running this
-//For Windows, run it in wsl with go test xsql/processors/extension_test.go xsql/processors/xsql_processor.go
+//For Windows, run it in wsl with go test -tags test internal/topo/topotest/plugin_rule_test.go internal/topo/topotest/mock_topo.go
 var CACHE_FILE = "cache"
 
 //Test for source, sink, func and agg func extensions
@@ -203,11 +211,6 @@ func TestFuncState(t *testing.T) {
 				}},
 			},
 			M: map[string]interface{}{
-				"op_1_preprocessor_text_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_text_0_process_latency_us": int64(0),
-				"op_1_preprocessor_text_0_records_in_total":   int64(8),
-				"op_1_preprocessor_text_0_records_out_total":  int64(8),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(8),
@@ -268,11 +271,6 @@ func TestFuncStateCheckpoint(t *testing.T) {
 					}},
 				},
 				M: map[string]interface{}{
-					"op_1_preprocessor_text_0_exceptions_total":   int64(0),
-					"op_1_preprocessor_text_0_process_latency_us": int64(0),
-					"op_1_preprocessor_text_0_records_in_total":   int64(6),
-					"op_1_preprocessor_text_0_records_out_total":  int64(6),
-
 					"op_2_project_0_exceptions_total":   int64(0),
 					"op_2_project_0_process_latency_us": int64(0),
 					"op_2_project_0_records_in_total":   int64(6),
@@ -290,11 +288,6 @@ func TestFuncStateCheckpoint(t *testing.T) {
 			PauseSize: 3,
 			Cc:        1,
 			PauseMetric: map[string]interface{}{
-				"op_1_preprocessor_text_0_exceptions_total":   int64(0),
-				"op_1_preprocessor_text_0_process_latency_us": int64(0),
-				"op_1_preprocessor_text_0_records_in_total":   int64(3),
-				"op_1_preprocessor_text_0_records_out_total":  int64(3),
-
 				"op_2_project_0_exceptions_total":   int64(0),
 				"op_2_project_0_process_latency_us": int64(0),
 				"op_2_project_0_records_in_total":   int64(3),

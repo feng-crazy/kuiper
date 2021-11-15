@@ -422,6 +422,40 @@ func TestAggregatePlan_Apply(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			sql: "SELECT * FROM A FULL JOIN B on A.module=B.module FULL JOIN C on A.module=C.module GROUP BY A.module, TUMBLINGWINDOW(ss, 10)",
+			data: &xsql.JoinTupleSets{
+				Content: []xsql.JoinTuple{
+					{
+						Tuples: []xsql.Tuple{
+							{Emitter: "B", Message: xsql.Message{"module": 1, "topic": "moduleB topic", "value": 1}},
+						},
+					},
+					{
+						Tuples: []xsql.Tuple{
+							{Emitter: "C", Message: xsql.Message{"module": 1, "topic": "moduleC topic", "value": 100}},
+						},
+					},
+				},
+			},
+			result: xsql.GroupedTuplesSet{
+				{
+					Content: []xsql.DataValuer{
+						&xsql.JoinTuple{
+							Tuples: []xsql.Tuple{
+								{Emitter: "B", Message: xsql.Message{"module": 1, "topic": "moduleB topic", "value": 1}},
+							},
+						},
+						&xsql.JoinTuple{
+							Tuples: []xsql.Tuple{
+								{Emitter: "C", Message: xsql.Message{"module": 1, "topic": "moduleC topic", "value": 100}},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	fmt.Printf("The test bucket size is %d.\n\n", len(tests))
@@ -433,7 +467,7 @@ func TestAggregatePlan_Apply(t *testing.T) {
 			t.Errorf("statement parse error %s", err)
 			break
 		}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		pp := &AggregateOp{Dimensions: stmt.Dimensions.GetGroups()}
 		result := pp.Apply(ctx, tt.data, fv, afv)
 		gr, ok := result.(xsql.GroupedTuplesSet)
@@ -504,7 +538,7 @@ func TestAggregatePlanError(t *testing.T) {
 			t.Errorf("statement parse error %s", err)
 			break
 		}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		pp := &AggregateOp{Dimensions: stmt.Dimensions.GetGroups()}
 		result := pp.Apply(ctx, tt.data, fv, afv)
 		if !reflect.DeepEqual(tt.result, result) {

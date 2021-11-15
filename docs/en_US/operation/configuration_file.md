@@ -1,5 +1,25 @@
 # Basic configurations
+
 The configuration file for eKuiper is at ``$kuiper/etc/kuiper.yaml``. The configuration file is yaml format.
+Application can be configured through environment variables. Environment variables are taking precedence over their counterparts
+in the yaml file. In order to use env variable for given config we must use formatting as follows:
+`KUIPER__` prefix + config path elements connected by `__`.
+Example, in case of config:
+
+```yaml
+basic:
+  # true|false, with debug level, it prints more debug info
+  debug: false
+  # true|false, if it's set to true, then the log will be print to console
+  consoleLog: false
+  # true|false, if it's set to true, then the log will be print to log file
+  fileLog: true
+  # How many hours to split the file
+  rotateTime: 24
+  # Maximum file storage hours
+  maxAge: 72
+```
+for debug option in basic following env is valid `KUIPER_BASIC_DEBUG=true` and if used debug value will be set to true.
 
 ## Log level
 
@@ -44,6 +64,14 @@ The port for the rest api http server to listen to.
 
 ### restTls
 The tls cert file path and key file path setting. If restTls is not set, the rest api server will listen on http. Otherwise, it will listen on https.
+
+## authentication 
+eKuiper will check the ``Token`` for rest api when ``authentication`` option is true. please check this file for [more info](./operations.md).
+
+```yaml
+basic:
+  authentication: false
+```
 
 ## Prometheus Configuration
 
@@ -138,3 +166,36 @@ The content of the page should be similar as below.
   disableCache: false
 ```
 
+## Store configurations
+
+There is possibility to configure storage of state for application. Default storage layer is sqlite database. There is option to set redis as storage.
+In order to use redis as store type property must be changed into redis value.
+
+### Sqlite
+    
+It has properties
+* name - name of database file - if left empty it will be `sqliteKV.db`
+ 
+### Redis
+
+It has properties
+* host     - host of redis
+* port     - port of redis
+* password - password used for auth in redis, if left empty auth won't be used
+* timeout  - timeout fo connection
+
+### Config
+```yaml
+    store:
+      #Type of store that will be used for keeping state of the application
+      type: sqlite
+      redis:
+        host: localhost
+        port: 6379
+        password: kuiper
+        #Timeout in ms
+        timeout: 1000
+      sqlite:
+        #Sqlite file name, if left empty name of db will be sqliteKV.db
+        name:
+```

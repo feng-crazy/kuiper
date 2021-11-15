@@ -15,7 +15,6 @@
 package operator
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
 	"github.com/lf-edge/ekuiper/internal/topo/context"
@@ -34,6 +33,20 @@ func TestStrFunc_Apply1(t *testing.T) {
 	}{
 		{
 			sql: "SELECT concat(a, b, c) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "mya",
+					"b": "myb",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": "myamybmyc",
+			}},
+		},
+		{
+			sql: "SELECT concat(a, d, b, c) AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
 				Message: xsql.Message{
@@ -76,6 +89,20 @@ func TestStrFunc_Apply1(t *testing.T) {
 			}},
 		},
 		{
+			sql: "SELECT endswith(a, d) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "mya",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": false,
+			}},
+		},
+		{
 			sql: "SELECT format_time(a, \"yyyy-MM-dd T HH:mm:ss\") AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
@@ -107,6 +134,18 @@ func TestStrFunc_Apply1(t *testing.T) {
 			}},
 		},
 		{
+			sql: "SELECT format_time(d, \"yyyy-MM-dd T HH:mm:ss\") AS time FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "hello",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
+		},
+		{
 			sql: "SELECT indexof(a, \"a\") AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
@@ -117,7 +156,21 @@ func TestStrFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": float64(2),
+				"a": 2,
+			}},
+		},
+		{
+			sql: "SELECT indexof(d, \"a\") AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "mya",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": -1,
 			}},
 		},
 		{
@@ -131,7 +184,7 @@ func TestStrFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": float64(2),
+				"a": 2,
 			}},
 		},
 		{
@@ -145,7 +198,21 @@ func TestStrFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": float64(3),
+				"a": 3,
+			}},
+		},
+		{
+			sql: "SELECT length(d) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "中国",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": 0,
 			}},
 		},
 		{
@@ -161,6 +228,18 @@ func TestStrFunc_Apply1(t *testing.T) {
 			result: []map[string]interface{}{{
 				"a": "nycnicks",
 			}},
+		},
+		{
+			sql: "SELECT lower(d) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
 		},
 		{
 			sql: "SELECT lpad(a, 2) AS a FROM test",
@@ -201,7 +280,7 @@ func TestStrFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": float64(6),
+				"a": 6,
 			}},
 		},
 		{
@@ -215,7 +294,7 @@ func TestStrFunc_Apply1(t *testing.T) {
 				},
 			},
 			result: []map[string]interface{}{{
-				"a": float64(2),
+				"a": 2,
 			}},
 		},
 		{
@@ -247,6 +326,20 @@ func TestStrFunc_Apply1(t *testing.T) {
 			}},
 		},
 		{
+			sql: "SELECT regexp_matches(d,\"foo.*\") AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "seafood",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": false,
+			}},
+		},
+		{
 			sql: "SELECT regexp_replace(a,\"a(x*)b\", \"REP\") AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
@@ -261,6 +354,18 @@ func TestStrFunc_Apply1(t *testing.T) {
 			}},
 		},
 		{
+			sql: "SELECT regexp_replace(a,\"a(x*)b\", d) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "-ab-axxb-",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
+		},
+		{
 			sql: "SELECT regexp_substr(a,\"foo.*\") AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
@@ -273,6 +378,18 @@ func TestStrFunc_Apply1(t *testing.T) {
 			result: []map[string]interface{}{{
 				"a": "food",
 			}},
+		},
+		{
+			sql: "SELECT regexp_substr(d,\"foo.*\") AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "seafood",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
 		},
 		{
 			sql: "SELECT rpad(a, 3) AS a FROM test",
@@ -331,6 +448,74 @@ func TestStrFunc_Apply1(t *testing.T) {
 			}},
 		},
 		{
+			sql: "SELECT substring(a, 3, 100) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": "Nicks",
+			}},
+		},
+		{
+			sql: "SELECT substring(a, 88, 100) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": "",
+			}},
+		},
+		{
+			sql: "SELECT substring(a, 100) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": "",
+			}},
+		},
+		{
+			sql: "SELECT substring(a, 100) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": "",
+			}},
+		},
+		{
+			sql: "SELECT substring(d, 3, 100) AS bc FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "NYCNicks",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{}},
+		},
+		{
 			sql: "SELECT endswith(a, b) AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
@@ -346,6 +531,20 @@ func TestStrFunc_Apply1(t *testing.T) {
 		},
 		{
 			sql: "SELECT endswith(a, c) AS a FROM test",
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "mya",
+					"b": "ya",
+					"c": "myc",
+				},
+			},
+			result: []map[string]interface{}{{
+				"a": false,
+			}},
+		},
+		{
+			sql: "SELECT endswith(d, c) AS a FROM test",
 			data: &xsql.Tuple{
 				Emitter: "test",
 				Message: xsql.Message{
@@ -425,6 +624,16 @@ func TestStrFunc_Apply1(t *testing.T) {
 				"a": "message",
 			}},
 		},
+		{
+			sql: `SELECT split_value(d,"/",2) AS a FROM test1`,
+			data: &xsql.Tuple{
+				Emitter: "test",
+				Message: xsql.Message{
+					"a": "test/device001/message",
+				},
+			},
+			result: []map[string]interface{}{{}},
+		},
 
 		{
 			sql: `SELECT split_value(a,"/",0) AS a, split_value(a,"/",3) AS b FROM test1`,
@@ -450,22 +659,10 @@ func TestStrFunc_Apply1(t *testing.T) {
 			t.Errorf("parse sql %s error %v", tt.sql, err)
 		}
 		pp := &ProjectOp{Fields: stmt.Fields}
-		fv, afv := xsql.NewFunctionValuersForOp(nil, xsql.FuncRegisters)
+		fv, afv := xsql.NewFunctionValuersForOp(nil)
 		result := pp.Apply(ctx, tt.data, fv, afv)
-		var mapRes []map[string]interface{}
-		if v, ok := result.([]byte); ok {
-			err := json.Unmarshal(v, &mapRes)
-			if err != nil {
-				t.Errorf("Failed to parse the input into map.\n")
-				continue
-			}
-			//fmt.Printf("%t\n", mapRes["kuiper_field_0"])
-
-			if !reflect.DeepEqual(tt.result, mapRes) {
-				t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, mapRes)
-			}
-		} else {
-			t.Errorf("%d. The returned result is not type of []byte\n", i)
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Errorf("%d. %q\n\nresult mismatch:\n\nexp=%#v\n\ngot=%#v\n\n", i, tt.sql, tt.result, result)
 		}
 	}
 }

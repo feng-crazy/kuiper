@@ -20,7 +20,7 @@ import (
 	kconf "github.com/lf-edge/ekuiper/internal/conf"
 	"github.com/lf-edge/ekuiper/internal/pkg/filex"
 	"github.com/lf-edge/ekuiper/internal/pkg/httpx"
-	"github.com/lf-edge/ekuiper/internal/pkg/sqlkv"
+	"github.com/lf-edge/ekuiper/internal/pkg/store"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/kv"
 	"io/ioutil"
@@ -48,7 +48,7 @@ type Manager struct {
 	functionKV kv.KeyValue
 }
 
-func GetServiceManager() (*Manager, error) {
+func InitManager() (*Manager, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if singleton == nil {
@@ -60,11 +60,11 @@ func GetServiceManager() (*Manager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot find etc/services folder: %s", err)
 		}
-		sdb, err := sqlkv.GetKVStore("services")
+		err, sdb := store.GetKV("services")
 		if err != nil {
 			return nil, fmt.Errorf("cannot open service db: %s", err)
 		}
-		fdb, err := sqlkv.GetKVStore("serviceFuncs")
+		err, fdb := store.GetKV("serviceFuncs")
 		if err != nil {
 			return nil, fmt.Errorf("cannot open function db: %s", err)
 		}
@@ -83,6 +83,10 @@ func GetServiceManager() (*Manager, error) {
 		return singleton, err
 	}
 	return singleton, nil
+}
+
+func GetManager() *Manager {
+	return singleton
 }
 
 /**
@@ -176,12 +180,10 @@ func (m *Manager) initFile(baseName string) error {
 	return nil
 }
 
-// Start Implement FunctionRegister
+// Start Implement FunctionFactory
 
-func (m *Manager) HasFunction(name string) bool {
-	_, ok := m.getFunction(name)
-	kconf.Log.Debugf("found external function %s? %v ", name, ok)
-	return ok
+func (m *Manager) HasFunctionSet(name string) bool {
+	return false
 }
 
 func (m *Manager) Function(name string) (api.Function, error) {
@@ -205,7 +207,7 @@ func (m *Manager) Function(name string) (api.Function, error) {
 	return &ExternalFunc{exe: e, methodName: f.MethodName}, nil
 }
 
-// End Implement FunctionRegister
+// End Implement FunctionFactory
 
 func (m *Manager) HasService(name string) bool {
 	_, ok := m.getService(name)
