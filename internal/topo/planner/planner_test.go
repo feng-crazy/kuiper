@@ -404,7 +404,7 @@ func Test_createLogicalPlan(t *testing.T) {
 								},
 							},
 							condition: &ast.BinaryExpr{
-								LHS: &ast.Call{Name: "COUNT", Args: []ast.Expr{&ast.Wildcard{
+								LHS: &ast.Call{Name: "count", Args: []ast.Expr{&ast.Wildcard{
 									Token: ast.ASTERISK,
 								}}},
 								OP:  ast.GT,
@@ -1434,7 +1434,7 @@ func Test_createLogicalPlanSchemaless(t *testing.T) {
 								},
 							},
 							condition: &ast.BinaryExpr{
-								LHS: &ast.Call{Name: "COUNT", Args: []ast.Expr{&ast.Wildcard{
+								LHS: &ast.Call{Name: "count", Args: []ast.Expr{&ast.Wildcard{
 									Token: ast.ASTERISK,
 								}}},
 								OP:  ast.GT,
@@ -2015,6 +2015,44 @@ func Test_createLogicalPlanSchemaless(t *testing.T) {
 						)},
 						Name:  "hum",
 						AName: "hum2",
+					},
+				},
+				isAggregate: false,
+				sendMeta:    false,
+			}.Init(),
+		}, { // 12
+			sql: `SELECT name->first, name->last FROM src1`,
+			p: ProjectPlan{
+				baseLogicalPlan: baseLogicalPlan{
+					children: []LogicalPlan{
+						DataSourcePlan{
+							baseLogicalPlan: baseLogicalPlan{},
+							name:            "src1",
+							streamFields: []interface{}{
+								"name",
+							},
+							streamStmt: streams["src1"],
+							metaFields: []string{},
+						}.Init(),
+					},
+				},
+				fields: []ast.Field{
+					{
+						Expr: &ast.BinaryExpr{
+							OP:  ast.ARROW,
+							LHS: &ast.FieldRef{StreamName: "src1", Name: "name"},
+							RHS: &ast.JsonFieldRef{Name: "first"},
+						},
+						Name:  "kuiper_field_0",
+						AName: "",
+					}, {
+						Expr: &ast.BinaryExpr{
+							OP:  ast.ARROW,
+							LHS: &ast.FieldRef{StreamName: "src1", Name: "name"},
+							RHS: &ast.JsonFieldRef{Name: "last"},
+						},
+						Name:  "kuiper_field_1",
+						AName: "",
 					},
 				},
 				isAggregate: false,

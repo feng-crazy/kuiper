@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build edgex
 // +build edgex
 
 package source
@@ -105,7 +106,7 @@ func (es *EdgexSource) Configure(_ string, props map[string]interface{}) error {
 func printConf(mbconf types.MessageBusConfig) {
 	var printableOptional = make(map[string]string)
 	for k, v := range mbconf.Optional {
-		if strings.ToLower(k) == "password" {
+		if strings.EqualFold(k, "password") {
 			printableOptional[k] = "*"
 		} else {
 			printableOptional[k] = v
@@ -166,7 +167,7 @@ func (es *EdgexSource) Open(ctx api.StreamContext, consumer chan<- api.SourceTup
 				if !ok { // the source is closed
 					return
 				}
-				if strings.ToLower(env.ContentType) == "application/json" {
+				if strings.EqualFold(env.ContentType, "application/json") {
 					var r interface{}
 					switch es.messageType {
 					case MessageTypeEvent:
@@ -317,6 +318,8 @@ func (es *EdgexSource) getValue(r dtos.BaseReading, logger api.Logger) (interfac
 		}
 	case v2.ValueTypeBinary:
 		return r.BinaryValue, nil
+	case v2.ValueTypeObject:
+		return r.ObjectValue, nil
 	default:
 		logger.Warnf("Not supported type %s, and processed as string value", t)
 		return v, nil

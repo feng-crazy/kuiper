@@ -26,7 +26,6 @@ import (
 	"math"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -53,7 +52,7 @@ func (p *defaultFieldProcessor) processField(tuple *xsql.Tuple, _ *xsql.Function
 				if p.isBinary {
 					result = tuple.Message
 				} else {
-					if m, ok := tuple.Message.Value(sf); ok {
+					if m, ok := tuple.Message.Value(sf, ""); ok {
 						result[sf] = m
 					}
 				}
@@ -69,7 +68,7 @@ func (p *defaultFieldProcessor) processField(tuple *xsql.Tuple, _ *xsql.Function
 }
 
 func (p *defaultFieldProcessor) addRecField(ft ast.FieldType, r map[string]interface{}, j xsql.Message, n string) error {
-	if t, ok := j.Value(n); ok {
+	if t, ok := j.Value(n, ""); ok {
 		v := reflect.ValueOf(t)
 		jtype := v.Kind()
 		switch st := ft.(type) {
@@ -204,7 +203,7 @@ func (p *defaultFieldProcessor) addRecField(ft ast.FieldType, r map[string]inter
 			}
 			nextR := make(map[string]interface{})
 			for _, nextF := range st.StreamFields {
-				nextP := strings.ToLower(nextF.Name)
+				nextP := nextF.Name
 				if e := p.addRecField(nextF.FieldType, nextR, nextJ, nextP); e != nil {
 					return e
 				}

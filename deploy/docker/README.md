@@ -41,6 +41,10 @@ Notice: This image is the equivalent to development image of `x.x.x-dev` in 0.3.
 
 This image is also based on Debian, and only contains the minimal packages needed to run eKuiper. The difference between this and previous image (`lfedge/ekuiper:<tag>`) is that this image does not include Golang development environment. The typical usage of this image would be deploy the plugins compiled in previous Docker image instances. This is the official recommended image if you want to deploy & run  customized plugins into eKuiper.
 
+## `lfedge/ekuiper:<tag>-slim-python`
+
+This image is the same as slim except that it also contains python environment. It is recommended if using eKuiper python portable plugins.
+
 ## `lfedge/ekuiper:<tag>-alpine`
 
 This image is based on the popular [Alpine Linux project](http://alpinelinux.org), available in [the `alpine` official image](https://hub.docker.com/_/alpine). Alpine Linux is much smaller than most distribution base images (~5MB), and thus leads to much slimmer images in general. 
@@ -53,7 +57,7 @@ To minimize image size, it's uncommon for additional related tools (such as `git
 
 LF Edge eKuiper is an edge lightweight IoT data analytics / streaming software implemented by Golang, and it can be run at all kinds of resource constrained edge devices. One goal of eKuiper is to migrate the cloud streaming software frameworks (such as [Apache Spark](https://spark.apache.org)，[Apache Storm](https://storm.apache.org) and [Apache Flink](https://flink.apache.org)) to edge side.  eKuiper references these cloud streaming frameworks, and also considered special requirement of edge analytics, and introduced **rule engine**, which is based on ``Source``, ``SQL (business logic)`` and ``Sink``, rule engine is used for developing streaming applications at edge side.
 
-![eKuiper architect](https://github.com/lf-edge/ekuiper/raw/master/docs/resources/arch.png)
+![eKuiper architect](https://github.com/lf-edge/ekuiper/blob/master/docs/en_US/arch.png)
 
 **User scenarios**
 
@@ -80,7 +84,7 @@ It can be run at various IoT edge use scenarios, such as real-time processing of
   - Sink: embedded support for MQTT and HTTP, and provide extension points for sinks
   - UDF functions: embedded support for 60+ functions, and provide extension points for SQL functions
 - Management
-  - [A web based management dashboard](https://hub.docker.com/r/emqx/kuiper-manager) for nodes, plugins, streams & rules management
+  - [A web based management dashboard](https://hub.docker.com/r/emqx/ekuiper-manager) for nodes, plugins, streams & rules management
   - Plugins, streams and rules management through CLI & REST API
   - Easily be integrate with [KubeEdge](https://github.com/kubeedge/kubeedge), [K3s](https://github.com/rancher/k3s) and [Baetyl](https://github.com/baetyl/baetyl), which bases Kubernetes
 - Integration with EMQ X Nuron & Edge

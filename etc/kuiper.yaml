@@ -29,6 +29,8 @@ basic:
   # There could be several hosts (host can be separated with comma), if same package could be found in the several hosts,
   # then the package in the 1st host will have the highest priority.
   pluginHosts: https://packages.emqx.net
+  # Whether to ignore case in SQL processing. Note that, the name of customized function by plugins are case-sensitive.
+  ignoreCase: true
 
 # The default options for all rules. Each rule can override this setting by defining its own option
 rule:
@@ -67,3 +69,9 @@ store:
   sqlite:
     #Sqlite file name, if left empty name of db will be sqliteKV.db
     name:
+
+# The settings for portable plugin
+portable:
+  # The executable of python. Specify this if you have multiple python instances in your system
+  # or other circumstance where the python executable cannot be successfully invoked through the default command.
+  pythonBin: python

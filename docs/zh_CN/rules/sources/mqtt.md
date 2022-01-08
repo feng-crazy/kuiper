@@ -41,6 +41,14 @@ MQTT 连接用户名。
 
 MQTT 连接密码。
 
+### protocolVersion
+
+MQTT 协议版本。3.1 (也被称为 MQTT 3) 或者 3.1.1 (也被称为 MQTT 4)。 如果未指定，缺省值为 3.1。
+
+### clientid
+
+MQTT 连接的客户端 ID。 如果未指定，将使用一个 uuid。
+
 ### certificationPath
 
 证书路径。可以为绝对路径，也可以为相对路径。如果指定的是相对路径，那么父目录为执行 `kuiperd` 命令的路径。比如，如果你在 `/var/kuiper` 中运行 `bin/kuiperd` ，那么父目录为 `/var/kuiper`; 如果运行从`/var/kuiper/bin`中运行`./kuiperd`，那么父目录为 `/var/kuiper/bin`。 比如  `d3807d9fa5-certificate.pem`。
@@ -51,7 +59,7 @@ MQTT 连接密码。
 
 ### rootCaPath
 
-根证书路径。可以为绝对路径，也可以为相对路径。.
+根证书路径。可以为绝对路径，也可以为相对路径。
 
 ### insecureSkipVerify
 
@@ -59,7 +67,7 @@ MQTT 连接密码。
 
 ### connectionSelector
 
-复用 MQTT 源连接。连接配置信息位于 ``connections/connection.yaml``.
+重用 MQTT 源连接。连接配置信息位于 ``connections/connection.yaml``.
 ```yaml
 mqtt:
   localConnection: #connection key

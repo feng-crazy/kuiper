@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.15.1 AS builder
+FROM golang:1.17.3 AS builder
 
 COPY . /go/kuiper
 
 WORKDIR /go/kuiper
 
-RUN apt update && apt install -y pkg-config libczmq-dev
+RUN apt-get update \
+    && apt-get install -y pkg-config libczmq-dev wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN make build_with_edgex \
     && ln -s /go/kuiper/_build/kuiper-$(git describe --tags --always)-$(go env GOOS)-$(go env GOARCH) /usr/local/kuiper

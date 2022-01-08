@@ -18,8 +18,12 @@ basic:
   rotateTime: 24
   # Maximum file storage hours
   maxAge: 72
+  # Whether to ignore case in SQL processing. Note that, the name of customized function by plugins are case-sensitive.
+  ignoreCase: true
 ```
 for debug option in basic following env is valid `KUIPER_BASIC_DEBUG=true` and if used debug value will be set to true.
+
+Configuration **ignoreCase** is used to ignore case in SQL processing. By default, it's set to true to comply with standard SQL. In this case, data ingested can be case-insensitive. If the column names in the SQL, stream definition and the ingested data can be unified as a case-sensitive name, it is recommended to set to false to gain a better performance.
 
 ## Log level
 
@@ -66,7 +70,7 @@ The port for the rest api http server to listen to.
 The tls cert file path and key file path setting. If restTls is not set, the rest api server will listen on http. Otherwise, it will listen on https.
 
 ## authentication 
-eKuiper will check the ``Token`` for rest api when ``authentication`` option is true. please check this file for [more info](./operations.md).
+eKuiper will check the ``Token`` for rest api when ``authentication`` option is true. please check this file for [more info](./authentication.md).
 
 ```yaml
 basic:
@@ -183,6 +187,11 @@ It has properties
 * port     - port of redis
 * password - password used for auth in redis, if left empty auth won't be used
 * timeout  - timeout fo connection
+* connectionSelector - reuse the connection info defined in etc/connections/connection.yaml, mainly used for edgeX redis in secure mode
+  * only applicable to redis connection information
+  * the server, port and password in connection info will overwrite the host port and password above
+  * [more info](../rules/sources/edgex.md#connectionselector)
+    
 
 ### Config
 ```yaml
@@ -198,4 +207,15 @@ It has properties
       sqlite:
         #Sqlite file name, if left empty name of db will be sqliteKV.db
         name:
+```
+
+## Portable plugin configurations
+
+This section configures the portable plugin runtime.
+
+```yaml
+  portable:
+      # The executable of python. Specify this if you have multiple python instances in your system
+      # or other circumstance where the python executable cannot be successfully invoked through the default command.
+      pythonBin: python
 ```

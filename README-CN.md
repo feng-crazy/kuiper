@@ -46,7 +46,7 @@ eKuiper 可以运行在各类物联网的边缘使用场景中，比如工业物
   - SQL 函数：内置支持60+常见的函数，提供扩展点可以扩展自定义函数
 
 - 管理能力
-  - [基于 Web 的管理控制台](https://hub.docker.com/r/emqx/kuiper-manager)，用于节点，插件，流和规则的管理
+  - [基于 Web 的管理控制台](https://hub.docker.com/r/emqx/ekuiper-manager)，用于节点，插件，流和规则的管理
   - 通过命令行和 REST API 对流、规则和插件进行管理
   - 与 [KubeEdge](https://github.com/kubeedge/kubeedge)、[K3s](https://github.com/rancher/k3s)、[Baetyl](https://github.com/baetyl/baetyl) 等基于边缘 Kubernetes 框架的集成能力
 
@@ -178,7 +178,7 @@ eKuiper 可以运行在各类物联网的边缘使用场景中，比如工业物
   > Docker 镜像默认支持 EdgeX
 
 
-如果您要实现交叉编译，请参考[此文档](docs/zh_CN/cross-compile.md)。
+项目版本页面里提供了预编译的二进制文件。如果您的操作系统或架构没有预编译的文件，请使用交叉编译自行构建，请参考[此文档](docs/zh_CN/cross-compile.md)。
 
 ## 开源版权
 

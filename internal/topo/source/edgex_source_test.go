@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build edgex
 // +build edgex
 
 package source
@@ -332,6 +333,25 @@ func TestPrintConf(t *testing.T) {
 func TestGetValue_Binary(t *testing.T) {
 	ev := []byte("Hello World")
 	r1 := dtos.BaseReading{ResourceName: "bin", ValueType: v2.ValueTypeBinary, BinaryReading: dtos.BinaryReading{MediaType: "application/text", BinaryValue: ev}}
+	if v, e := es.getValue(r1, conf.Log); e != nil {
+		t.Errorf("%s", e)
+	} else if !reflect.DeepEqual(ev, v) {
+		t.Errorf("result mismatch, expect %v, but got %v", ev, v)
+	}
+}
+
+func TestGetValue_Object(t *testing.T) {
+	ev := map[string]interface{}{
+		"a": 3,
+		"b": "string",
+		"c": 12.3,
+	}
+	r1 := dtos.NewObjectReading("p", "d", "obj", ev)
+	err := r1.Validate()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	if v, e := es.getValue(r1, conf.Log); e != nil {
 		t.Errorf("%s", e)
 	} else if !reflect.DeepEqual(ev, v) {

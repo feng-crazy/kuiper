@@ -24,16 +24,16 @@ From eKuiper version 0.9.1, whenever a new version of eKuiper is released, the c
 
 ### Install eKuiper
 
-- Pull eKuiper's Docker image from [Docker Image Library](https://hub.docker.com/r/lfedge/ekuiper/tags). Since it is required to install the plugin in this article, you must use the `kuiper:0.9.1-slim` image (`kuiper:0.9.1-alpine` image is relatively small and easy to install, but due to the lack of some necessary library files, the plug-in cannot run normally. The `kuiper:0.9.1` image is the development version, which is suitable for use in the development phase).
+- Pull eKuiper's Docker image from [Docker Image Library](https://hub.docker.com/r/lfedge/ekuiper/tags). Since it is required to install the plugin in this article, you must use the `ekuiper:1.3.1-slim` image (`ekuiper:1.3.1-alpine` image is relatively small and easy to install, but due to the lack of some necessary library files, the plug-in cannot run normally. The `ekuiper:1.3.1` image is the development version, which is suitable for use in the development phase).
 
   ```shell
-  docker pull lfedge/ekuiper:0.9.1-slim
+  docker pull lfedge/ekuiper:1.3.1-slim
   ```
 
 - Run the eKuiper container (for convenience, we will use the public MQTT server provided by [EMQ](https://www.emqx.io), and the address can be set by the `-e` option when running the container). If you want to access the eKuiper instance through the host, you can expose port 9081 by adding the `-p 9081:9081` parameter when starting the container.
 
   ```shell
-  # docker run -d --name kuiper -e MQTT_SOURCE__DEFAULT__SERVERS=[tcp://broker.emqx.io:1883] lfedge/ekuiper:0.9.1-slim
+  # docker run -d --name kuiper -e MQTT_SOURCE__DEFAULT__SERVERS=[tcp://broker.emqx.io:1883] lfedge/ekuiper:1.3.1-slim
   ```
   
   When the container is running, the MQTT server address can be set through the `-e` option, and the data is written to the MQTT source configuration file, which can be viewed by the following command:
@@ -57,16 +57,16 @@ From eKuiper version 0.9.1, whenever a new version of eKuiper is released, the c
 
 ### Install management console
 
-- Pull the Docker image of kuiper-manager from [Docker Image Library](https://hub.docker.com/r/emqx/kuiper-manager/tags), and `0.9.1-ief` is a dedicated image for Huawei IEF users, This example uses the `0.9.1` image.
+- Pull the Docker image of kuiper-manager from [Docker Image Library](https://hub.docker.com/r/emqx/ekuiper-manager/tags), and `1.3.1-ief` is a dedicated image for Huawei IEF users, This example uses the `1.3.1` image.
 
   ```shell
-  docker pull emqx/kuiper-manager:0.9.1
+  docker pull emqx/ekuiper-manager:1.3.1
   ```
 
 - Run the Kuiper-manager container and expose port 9082.
 
   ```shell
-  docker run --name kuiperManager -d -p 9082:9082 emqx/kuiper-manager:0.9.1
+  docker run --name kuiperManager -d -p 9082:9082 emqx/ekuiper-manager:1.3.1
   ```
 
 ## Getting started
@@ -83,13 +83,14 @@ You need to provide the address, user name, and password of kuiper-manager when 
 
   ![login](./resources/login.png)
 
-### Create a eKuiper node
+### Create a eKuiper service
 
-When creating a eKuiper node, you need to fill in the "node type", "node name" and "endpoint URL".
+When creating a eKuiper service, you need to fill in the "service type", "service name" and "endpoint URL".
 
-* Node Type: Select `Direct Connect Node` (`Huawei IEF Node` is dedicated to Huawei users).
+* Service Type: Select `Direct Connect service` (`Huawei IEF service` is dedicated to Huawei users).
 
-* Node name: self-made, this example uses `example`.
+* * Service Type: Select `Direct Connect service` (`Huawei IEF service` is dedicated to Huawei users).
+ name: self-made, this example uses `example`.
 
 * Endpoint URL: `http://$IP:9081`, the IP acquisition command is as follows:
 
@@ -97,13 +98,13 @@ When creating a eKuiper node, you need to fill in the "node type", "node name" a
   docker inspect kuiper |  grep IPAddress
   ```
 
-The example of creating a eKuiper node is shown in the figure below. If the port is exposed to the host, then the 9081 port address on the host can also be used directly.
+The example of creating a eKuiper service is shown in the figure below. If the port is exposed to the host, then the 9081 port address on the host can also be used directly.
 
-![addNode](./resources/add_node.png)
+![addNode](./resources/add_service.png)
 
 ### Install the plugin
 
-In our scenario, the target plugin named file will be used. Select "Plugins" > "Install plugin", and the following dialog box will pop up: Select the target plugin named file in the drop-down list to download and install it, and the plugin will write data to the file specified by the user. As shown in the figure below, after the reader selects the plug-in with the corresponding name, the  input box of "File" will automatically be filled with the corresponding plug-in download address. After clicking the "Submit" button, eKuiper will automatically download the corresponding plugin from the relevant address on `https://www.emqx.io/downloads` and install it into the system automatically.
+In our scenario, the target plugin named file will be used. Select "Plugins" > "Install plugin", and the following dialog box will pop up: Select the target plugin named file in the drop-down list to download and install it, and the plugin will write data to the file specified by the user. As shown in the figure below, after the reader selects the plug-in with the corresponding name, the  input box of "File" will automatically be filled with the corresponding plug-in download address, Enter the extended parameter configuration of the installation plug-in script. After clicking the "Submit" button, eKuiper will automatically download the corresponding plugin from the relevant address on `https://www.emqx.io/downloads` and install it into the system automatically.
 
 ![newPlugine](./resources/new_plugin.png)
 
@@ -132,9 +133,11 @@ Create a stream named `demoStream`, as shown below:
 
 ![newStream](./resources/new_stream.png)
 
-As shown above, the "default" configuration group is used. Users can also write their own configuration according to their needs. The specific operation is to click `Source Configuration` on the page of creating a steam, and a dialog box will pop up as shown in the figure below. If the user enters the value of any configuration item here, the corresponding default configuration will be overwritten; if no value is entered, the default configuration value will be used.
+As shown above, the "default" configuration group is used. Users can also write their own configuration according to their needs. The specific operation is to click `Source Configuration` on the page of creating a steam, Jump to the configuration page, expand the type of configuration you need, and click the plus sign to create source config and a dialog box will pop up as shown below.
 
 ![sourceConf](./resources/source_conf.png)
+
+![sourceConf](./resources/create_conf.png)
 
 ### Create a rule
 

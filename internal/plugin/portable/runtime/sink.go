@@ -68,13 +68,22 @@ func (ps *PortableSink) Open(ctx api.StreamContext) error {
 	// must start symbol firstly
 	dataCh, err := CreateSinkChannel(ctx)
 	if err != nil {
+		_ = ins.StopSymbol(ctx, c)
 		return err
 	}
 
 	ps.clean = func() error {
-		ctx.GetLogger().Info("closing sink data channe")
-		dataCh.Close()
-		return ins.StopSymbol(ctx, c)
+		ctx.GetLogger().Info("clean up sink")
+		err1 := dataCh.Close()
+		err2 := ins.StopSymbol(ctx, c)
+		e := make(errorx.MultiError)
+		if err1 != nil {
+			e["dataCh"] = err1
+		}
+		if err != nil {
+			e["symbol"] = err2
+		}
+		return e.GetError()
 	}
 	ps.dataCh = dataCh
 	return nil
@@ -82,7 +91,7 @@ func (ps *PortableSink) Open(ctx api.StreamContext) error {
 
 func (ps *PortableSink) Collect(ctx api.StreamContext, item interface{}) error {
 	ctx.GetLogger().Debugf("Receive %+v", item)
-	if val, _, err := ctx.TransformOutput(); err == nil {
+	if val, _, err := ctx.TransformOutput(item); err == nil {
 		ctx.GetLogger().Debugf("Send %s", val)
 		e := ps.dataCh.Send(val)
 		if e != nil {
@@ -96,6 +105,7 @@ func (ps *PortableSink) Collect(ctx api.StreamContext, item interface{}) error {
 }
 
 func (ps *PortableSink) Close(ctx api.StreamContext) error {
+	ctx.GetLogger().Infof("Closing sink %s", ps.symbolName)
 	if ps.clean != nil {
 		return ps.clean()
 	}

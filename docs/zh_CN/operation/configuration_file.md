@@ -15,7 +15,12 @@ basic:
   rotateTime: 24
   # Maximum file storage hours
   maxAge: 168
+  # Whether to ignore case in SQL processing. Note that, the name of customized function by plugins are case-sensitive.
+  ignoreCase: true
 ```
+
+配置项 **ignoreCase** 用于指定 SQL 处理中是否大小写无关。默认情况下，为了与标准 SQL 兼容，其值为 true 。从而使得输入数据的列名大小写可以与 SQL 中的定义不同。如果 SQL 语句中，流定义以及输入数据中可以保证列名大小写完全一致，则建议设置该值为 false 以获得更优的性能。
+
 ## 系统日志
 用户将名为 KuiperSyslogKey 的环境变量的值设置为 true 时，日志将打印到系统日志中。
 ## Cli 地址
@@ -46,7 +51,7 @@ REST http 服务器监听端口
 TLS 证书 cert 文件和 key 文件位置。如果 restTls 选项未配置，则 REST 服务器将启动为 http 服务器，否则启动为 https 服务器。
 
 ## authentication 
-当 ``authentication`` 选项为 true 时，eKuiper 将为 rest api 请求检查 ``Token`` 。请检查此文件以获取 [更多信息](./operations.md)。
+当 ``authentication`` 选项为 true 时，eKuiper 将为 rest api 请求检查 ``Token`` 。请检查此文件以获取 [更多信息](./authentication.md)。
 
 ```yaml
 basic:
@@ -163,6 +168,11 @@ http://host:port/kuiper-plugins/0.9.1/alpine/functions
 * port     - redis 服务器端口。
 * password - redis 服务器密码。若 redis 未配置认证系统，则可不设置密码。
 * timeout  - 连接超时时间。
+* connectionSelector - 重用 etc/connections/connection.yaml 中定义的连接信息, 主要用在 edgex redis 配置了认证系统时
+    * 只适用于 edgex redis 的连接信息 
+    * 连接信息中的 server， port 和 password 会覆盖以上定义的 host， port 和 password
+    * [具体信息可参考](../rules/sources/edgex.md#connectionselector)
+
 
 ### 配置示例
 
@@ -179,4 +189,15 @@ http://host:port/kuiper-plugins/0.9.1/alpine/functions
       sqlite:
         #Sqlite file name, if left empty name of db will be sqliteKV.db
         name:
+```
+
+## Portable 插件配置
+
+配置 portable 插件的运行时属性。
+
+```yaml
+  portable:
+      # 配置 python 可执行文件的位置或命令。
+      # 若系统中有多个 python 版本，可通过此配置指定具体的 python 地址。
+      pythonBin: python
 ```

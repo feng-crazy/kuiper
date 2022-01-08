@@ -53,6 +53,7 @@ type KuiperConf struct {
 		PrometheusPort int      `yaml:"prometheusPort"`
 		PluginHosts    string   `yaml:"pluginHosts"`
 		Authentication bool     `yaml:"authentication"`
+		IgnoreCase     bool     `yaml:"ignoreCase"`
 	}
 	Rule api.RuleOption
 	Sink struct {
@@ -63,14 +64,18 @@ type KuiperConf struct {
 	Store struct {
 		Type  string `yaml:"type"`
 		Redis struct {
-			Host     string `yaml:"host"`
-			Port     int    `yaml:"port"`
-			Password string `yaml:"password"`
-			Timeout  int    `yaml:"timeout"`
+			Host               string `yaml:"host"`
+			Port               int    `yaml:"port"`
+			Password           string `yaml:"password"`
+			Timeout            int    `yaml:"timeout"`
+			ConnectionSelector string `yaml:"connectionSelector"`
 		}
 		Sqlite struct {
 			Name string `yaml:"name"`
 		}
+	}
+	Portable struct {
+		PythonBin string `yaml:"pythonBin"`
 	}
 }
 
@@ -131,6 +136,16 @@ func InitConf() {
 		}
 	} else if Config.Basic.ConsoleLog {
 		Log.SetOutput(os.Stdout)
+	}
+
+	if Config.Store.Type == "redis" && Config.Store.Redis.ConnectionSelector != "" {
+		if err := RedisStorageConSelectorApply(Config.Store.Redis.ConnectionSelector, Config); err != nil {
+			Log.Fatal(err)
+		}
+	}
+
+	if Config.Portable.PythonBin == "" {
+		Config.Portable.PythonBin = "python"
 	}
 }
 

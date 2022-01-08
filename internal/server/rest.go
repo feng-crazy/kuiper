@@ -15,7 +15,6 @@
 package server
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/handlers"
@@ -30,7 +29,6 @@ import (
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/ast"
 	"github.com/lf-edge/ekuiper/pkg/errorx"
-	"golang.org/x/net/html"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -128,11 +126,14 @@ func createRestServer(ip string, port int, needToken bool) *http.Server {
 	r.HandleFunc("/metadata/sinks", sinksMetaHandler).Methods(http.MethodGet)
 	r.HandleFunc("/metadata/sinks/{name}", newSinkMetaHandler).Methods(http.MethodGet)
 	r.HandleFunc("/metadata/sources", sourcesMetaHandler).Methods(http.MethodGet)
-	r.HandleFunc("/metadata/sources/yaml/{name}", sourceConfHandler).Methods(http.MethodGet)
 	r.HandleFunc("/metadata/sources/{name}", sourceMetaHandler).Methods(http.MethodGet)
-	r.HandleFunc("/metadata/sources/{name}/confKeys", sourceConfKeysHandler).Methods(http.MethodGet)
-	r.HandleFunc("/metadata/sources/{name}/confKeys/{confKey}", sourceConfKeyHandler).Methods(http.MethodDelete, http.MethodPost)
-	r.HandleFunc("/metadata/sources/{name}/confKeys/{confKey}/field", sourceConfKeyFieldsHandler).Methods(http.MethodDelete, http.MethodPost)
+	r.HandleFunc("/metadata/sources/yaml/{name}", sourceConfHandler).Methods(http.MethodGet)
+	r.HandleFunc("/metadata/sources/{name}/confKeys/{confKey}", sourceConfKeyHandler).Methods(http.MethodDelete, http.MethodPut)
+
+	r.HandleFunc("/metadata/connections", connectionsMetaHandler).Methods(http.MethodGet)
+	r.HandleFunc("/metadata/connections/{name}", connectionMetaHandler).Methods(http.MethodGet)
+	r.HandleFunc("/metadata/connections/yaml/{name}", connectionConfHandler).Methods(http.MethodGet)
+	r.HandleFunc("/metadata/connections/{name}/confKeys/{confKey}", connectionConfKeyHandler).Methods(http.MethodDelete, http.MethodPut)
 
 	r.HandleFunc("/services", servicesHandler).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/services/functions", serviceFunctionsHandler).Methods(http.MethodGet)
@@ -158,6 +159,7 @@ func createRestServer(ip string, port int, needToken bool) *http.Server {
 type information struct {
 	Version       string `json:"version"`
 	Os            string `json:"os"`
+	Arch          string `json:"arch"`
 	UpTimeSeconds int64  `json:"upTimeSeconds"`
 }
 
@@ -171,6 +173,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		info.Version = version
 		info.UpTimeSeconds = time.Now().Unix() - startTimeStamp
 		info.Os = runtime.GOOS
+		info.Arch = runtime.GOARCH
 		byteInfo, _ := json.Marshal(info)
 		w.Write(byteInfo)
 	}
@@ -631,7 +634,7 @@ func prebuildFuncsPlugins(w http.ResponseWriter, r *http.Request) {
 }
 
 func isOffcialDockerImage() bool {
-	if strings.ToLower(os.Getenv("MAINTAINER")) != "emqx.io" {
+	if !strings.EqualFold(os.Getenv("MAINTAINER"), "emqx.io") {
 		return false
 	}
 	return true
@@ -652,13 +655,8 @@ func prebuildPluginsHandler(w http.ResponseWriter, r *http.Request, t plugin.Plu
 		os := "debian"
 		if strings.Contains(prettyName, "DEBIAN") {
 			hosts := conf.Config.Basic.PluginHosts
-			ptype := "sources"
-			if t == plugin.SINK {
-				ptype = "sinks"
-			} else if t == plugin.FUNCTION {
-				ptype = "functions"
-			}
-			if err, plugins := fetchPluginList(hosts, ptype, os, runtime.GOARCH); err != nil {
+
+			if err, plugins := fetchPluginList(t, hosts, os, runtime.GOARCH); err != nil {
 				handleError(w, err, "", logger)
 			} else {
 				jsonResponse(plugins, w, logger)
@@ -672,10 +670,24 @@ func prebuildPluginsHandler(w http.ResponseWriter, r *http.Request, t plugin.Plu
 	}
 }
 
-func fetchPluginList(hosts, ptype, os, arch string) (err error, result map[string]string) {
+var NativeSourcePlugin = []string{"random", "zmq"}
+var NativeSinkPlugin = []string{"file", "image", "influx", "redis", "tdengine", "zmq"}
+var NativeFunctionPlugin = []string{"accumulateWordCount", "countPlusOne", "echo", "geohash", "image", "labelImage"}
+
+func fetchPluginList(t plugin.PluginType, hosts, os, arch string) (err error, result map[string]string) {
+	ptype := "sources"
+	plugins := NativeSourcePlugin
+	if t == plugin.SINK {
+		ptype = "sinks"
+		plugins = NativeSinkPlugin
+	} else if t == plugin.FUNCTION {
+		ptype = "functions"
+		plugins = NativeFunctionPlugin
+	}
+
 	if hosts == "" || ptype == "" || os == "" {
 		logger.Errorf("Invalid parameter value: hosts %s, ptype %s or os: %s should not be empty.", hosts, ptype, os)
-		return fmt.Errorf("Invalid configruation for plugin host in kuiper.yaml."), nil
+		return fmt.Errorf("invalid configruation for plugin host in kuiper.yaml"), nil
 	}
 	result = make(map[string]string)
 	hostsArr := strings.Split(hosts, ",")
@@ -684,71 +696,12 @@ func fetchPluginList(hosts, ptype, os, arch string) (err error, result map[strin
 		tmp := []string{host, "kuiper-plugins", version, os, ptype}
 		//The url is similar to http://host:port/kuiper-plugins/0.9.1/debian/sinks/
 		url := strings.Join(tmp, "/")
-		timeout := time.Duration(30 * time.Second)
-		client := &http.Client{
-			Timeout: timeout,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-		resp, err := client.Get(url)
-		logger.Infof("Trying to fetch plugins from url: %s\n", url)
 
-		if err != nil {
-			return err, nil
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("Cannot fetch plugin list from %s, with status error: %v", url, resp.StatusCode), nil
-		}
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err, nil
-		}
-		plugins := extractFromHtml(string(data), arch)
 		for _, p := range plugins {
-			//If already existed, using the existed.
-			if _, ok := result[p]; !ok {
-				result[p] = url + "/" + p + "_" + arch + ".zip"
-			}
-			logger.Debugf("Plugin %s, download address is %s\n", p, result[p])
+			result[p] = url + "/" + p + "_" + arch + ".zip"
 		}
 	}
 	return
-}
-
-func extractFromHtml(content, arch string) []string {
-	plugins := []string{}
-	htmlTokens := html.NewTokenizer(strings.NewReader(content))
-loop:
-	for {
-		tt := htmlTokens.Next()
-		switch tt {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			t := htmlTokens.Token()
-			isAnchor := t.Data == "a"
-			if isAnchor {
-				found := false
-				for _, prop := range t.Attr {
-					if strings.ToUpper(prop.Key) == "HREF" {
-						if strings.HasSuffix(prop.Val, "_"+arch+".zip") {
-							if index := strings.LastIndex(prop.Val, "_"); index != -1 {
-								plugins = append(plugins, prop.Val[0:index])
-							}
-						}
-						found = true
-					}
-				}
-				if !found {
-					logger.Infof("Invalid plugin download link %s", t)
-				}
-			}
-		}
-	}
-	return plugins
 }
 
 //list sink plugin
@@ -785,7 +738,17 @@ func functionsMetaHandler(w http.ResponseWriter, r *http.Request) {
 //list source plugin
 func sourcesMetaHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	ret := meta.GetSources()
+	ret := meta.GetSourcesPlugins()
+	if nil != ret {
+		jsonResponse(ret, w, logger)
+		return
+	}
+}
+
+//list shareMeta
+func connectionsMetaHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	ret := meta.GetConnectionPlugins()
 	if nil != ret {
 		jsonResponse(ret, w, logger)
 		return
@@ -809,13 +772,31 @@ func sourceMetaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//Get source metadata when creating stream
+func connectionMetaHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	vars := mux.Vars(r)
+	pluginName := vars["name"]
+	language := getLanguage(r)
+	ret, err := meta.GetConnectionMeta(pluginName, language)
+	if err != nil {
+		handleError(w, err, "", logger)
+		return
+	}
+	if nil != ret {
+		jsonResponse(ret, w, logger)
+		return
+	}
+}
+
 //Get source yaml
 func sourceConfHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
 	pluginName := vars["name"]
 	language := getLanguage(r)
-	ret, err := meta.GetSourceConf(pluginName, language)
+	configOperatorKey := fmt.Sprintf(meta.SourceCfgOperatorKeyTemplate, pluginName)
+	ret, err := meta.GetYamlConf(configOperatorKey, language)
 	if err != nil {
 		handleError(w, err, "", logger)
 		return
@@ -824,15 +805,19 @@ func sourceConfHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//Get confKeys of the source metadata
-func sourceConfKeysHandler(w http.ResponseWriter, r *http.Request) {
+//Get share yaml
+func connectionConfHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
 	pluginName := vars["name"]
-	ret := meta.GetSourceConfKeys(pluginName)
-	if nil != ret {
-		jsonResponse(ret, w, logger)
+	language := getLanguage(r)
+	configOperatorKey := fmt.Sprintf(meta.ConnectionCfgOperatorKeyTemplate, pluginName)
+	ret, err := meta.GetYamlConf(configOperatorKey, language)
+	if err != nil {
+		handleError(w, err, "", logger)
 		return
+	} else {
+		w.Write(ret)
 	}
 }
 
@@ -840,7 +825,6 @@ func sourceConfKeysHandler(w http.ResponseWriter, r *http.Request) {
 func sourceConfKeyHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
-	var ret interface{}
 	var err error
 	vars := mux.Vars(r)
 	pluginName := vars["name"]
@@ -849,9 +833,9 @@ func sourceConfKeyHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodDelete:
 		err = meta.DelSourceConfKey(pluginName, confKey, language)
-	case http.MethodPost:
-		v, err := ioutil.ReadAll(r.Body)
-		if err != nil {
+	case http.MethodPut:
+		v, err1 := ioutil.ReadAll(r.Body)
+		if err1 != nil {
 			handleError(w, err, "Invalid body", logger)
 			return
 		}
@@ -861,42 +845,34 @@ func sourceConfKeyHandler(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err, "", logger)
 		return
 	}
-	if nil != ret {
-		jsonResponse(ret, w, logger)
-		return
-	}
 }
 
-//Del and Update field of confkey
-func sourceConfKeyFieldsHandler(w http.ResponseWriter, r *http.Request) {
+//Add  del confkey
+func connectionConfKeyHandler(w http.ResponseWriter, r *http.Request) {
+
 	defer r.Body.Close()
-	var ret interface{}
 	var err error
 	vars := mux.Vars(r)
 	pluginName := vars["name"]
 	confKey := vars["confKey"]
-	v, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		handleError(w, err, "Invalid body", logger)
-		return
-	}
-
 	language := getLanguage(r)
 	switch r.Method {
 	case http.MethodDelete:
-		err = meta.DelSourceConfKeyField(pluginName, confKey, language, v)
-	case http.MethodPost:
-		err = meta.AddSourceConfKeyField(pluginName, confKey, language, v)
+		err = meta.DelConnectionConfKey(pluginName, confKey, language)
+	case http.MethodPut:
+		v, err1 := ioutil.ReadAll(r.Body)
+		if err1 != nil {
+			handleError(w, err1, "Invalid body", logger)
+			return
+		}
+		err = meta.AddConnectionConfKey(pluginName, confKey, language, v)
 	}
 	if err != nil {
 		handleError(w, err, "", logger)
 		return
 	}
-	if nil != ret {
-		jsonResponse(ret, w, logger)
-		return
-	}
 }
+
 func getLanguage(r *http.Request) string {
 	language := r.Header.Get("Content-Language")
 	if 0 == len(language) {

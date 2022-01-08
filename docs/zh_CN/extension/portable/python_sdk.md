@@ -4,7 +4,9 @@
 为了运行 python 插件，有两个前置条件
 To run python plugin, there are two prerequisites in the runtime environment:
 1. 安装 Python 3.x 环境.
-2. 通过 `pip install ekuiper` 安装 ekuiper 包.
+2. 通过 `pip install nng ekuiper` 安装 nng 和 ekuiper 包.
+
+默认情况下，eKuiper 的 portable 插件运行时会通过 `python` 命令来运行插件。如果您的环境不支持 `python` 命令，请通过[配置文件](../../operation/configuration_file.md#portable-插件配置)更换为可用的 Python 命令。
 
 ## 插件开发
 
@@ -91,3 +93,7 @@ if __name__ == '__main__':
 ## 打包发布
 
 由于 python 是解释性语言，不需要编译出可执行文件，需要确保 json 描述文件中可执行文件名字的准确性即可。详细信息，请[参考](./overview.md#package)
+
+## 部署要求
+
+运行 python 脚本需要有 python 环境。所以，目标系统必须安装 python 3.x 环境。如果使用 docker ，建议使用 `lfedge/ekuiper:<tag>-slim-python` 版本。该版本包含 eKuiper 和 python 环境，无需再手动安装。

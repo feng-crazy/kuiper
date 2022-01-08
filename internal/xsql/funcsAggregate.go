@@ -45,11 +45,11 @@ func (v *AggregateFunctionValuer) GetSingleCallValuer() CallValuer {
 	return v.fv
 }
 
-func (v *AggregateFunctionValuer) Value(string) (interface{}, bool) {
+func (v *AggregateFunctionValuer) Value(_, _ string) (interface{}, bool) {
 	return nil, false
 }
 
-func (v *AggregateFunctionValuer) Meta(string) (interface{}, bool) {
+func (v *AggregateFunctionValuer) Meta(_, _ string) (interface{}, bool) {
 	return nil, false
 }
 
@@ -62,6 +62,10 @@ func (v *AggregateFunctionValuer) FuncValue(key string) (interface{}, bool) {
 
 func (*AggregateFunctionValuer) AppendAlias(string, interface{}) bool {
 	return false
+}
+
+func (v *AggregateFunctionValuer) AliasValue(_ string) (interface{}, bool) {
+	return nil, false
 }
 
 func (v *AggregateFunctionValuer) Call(name string, args []interface{}) (interface{}, bool) {

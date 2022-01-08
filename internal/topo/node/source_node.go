@@ -88,7 +88,7 @@ func (m *SourceNode) Open(ctx api.StreamContext, errCh chan<- error) {
 			props["$retainSize"] = m.options.RETAIN_SIZE
 		}
 		m.reset()
-		logger.Infof("open source node %d instances", m.concurrency)
+		logger.Infof("open source node with props %v, concurrency: %d, bufferLength: %d", m.props, m.concurrency, m.bufferLength)
 		for i := 0; i < m.concurrency; i++ { // workers
 			go func(instance int) {
 				//Do open source instances
@@ -136,7 +136,6 @@ func (m *SourceNode) Open(ctx api.StreamContext, errCh chan<- error) {
 						tuple := &xsql.Tuple{Emitter: m.name, Message: data.Message(), Timestamp: conf.GetNowInMilli(), Metadata: data.Meta()}
 						processedData := m.preprocessOp.Apply(ctx, tuple, nil, nil)
 						stats.ProcessTimeEnd()
-						logger.Debugf("source node %s is sending tuple %+v of timestamp %d", m.name, tuple, tuple.Timestamp)
 						//blocking
 						switch val := processedData.(type) {
 						case nil:
@@ -161,7 +160,6 @@ func (m *SourceNode) Open(ctx api.StreamContext, errCh chan<- error) {
 								logger.Debugf("Source save offset %v", offset)
 							}
 						}
-						logger.Debugf("source node %s has consumed tuple of timestamp %d", m.name, tuple.Timestamp)
 					}
 				}
 			}(i)

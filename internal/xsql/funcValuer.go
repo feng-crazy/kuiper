@@ -31,16 +31,20 @@ func NewFunctionValuer(p *funcRuntime) *FunctionValuer {
 	return fv
 }
 
-func (*FunctionValuer) Value(string) (interface{}, bool) {
+func (*FunctionValuer) Value(_, _ string) (interface{}, bool) {
 	return nil, false
 }
 
-func (*FunctionValuer) Meta(string) (interface{}, bool) {
+func (*FunctionValuer) Meta(_, _ string) (interface{}, bool) {
 	return nil, false
 }
 
 func (*FunctionValuer) AppendAlias(string, interface{}) bool {
 	return false
+}
+
+func (*FunctionValuer) AliasValue(string) (interface{}, bool) {
+	return nil, false
 }
 
 func (fv *FunctionValuer) Call(name string, args []interface{}) (interface{}, bool) {

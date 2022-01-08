@@ -16,10 +16,10 @@ package source
 
 import (
 	"crypto/md5"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"github.com/lf-edge/ekuiper/internal/conf"
+	"github.com/lf-edge/ekuiper/internal/pkg/cert"
 	"github.com/lf-edge/ekuiper/internal/pkg/httpx"
 	"github.com/lf-edge/ekuiper/pkg/api"
 	"github.com/lf-edge/ekuiper/pkg/cast"
@@ -45,6 +45,9 @@ type HTTPPullSource struct {
 	headers            map[string]string
 	messageFormat      string
 	insecureSkipVerify bool
+	certificationPath  string
+	privateKeyPath     string
+	rootCaPath         string
 
 	client *http.Client
 }
@@ -73,10 +76,11 @@ func (hps *HTTPPullSource) Configure(device string, props map[string]interface{}
 
 	hps.interval = DEFAULT_INTERVAL
 	if i, ok := props["interval"]; ok {
-		if i1, ok1 := i.(int); ok1 {
-			hps.interval = i1
-		} else {
+		i1, err := cast.ToInt(i, cast.CONVERT_SAMEKIND)
+		if err != nil {
 			return fmt.Errorf("Not valid interval value %v.", i1)
+		} else {
+			hps.interval = i1
 		}
 	}
 
@@ -133,7 +137,31 @@ func (hps *HTTPPullSource) Configure(device string, props map[string]interface{}
 		if i1, ok1 := i.(bool); ok1 {
 			hps.insecureSkipVerify = i1
 		} else {
-			return fmt.Errorf("Not valid insecureSkipVerify value %v.", i1)
+			return fmt.Errorf("not valid insecureSkipVerify value %v", i1)
+		}
+	}
+
+	if certPath, ok := props["certificationPath"]; ok {
+		if certPath1, ok1 := certPath.(string); ok1 {
+			hps.certificationPath = certPath1
+		} else {
+			return fmt.Errorf("not valid certificationPath value %v", certPath)
+		}
+	}
+
+	if privPath, ok := props["privateKeyPath"]; ok {
+		if privPath1, ok1 := privPath.(string); ok1 {
+			hps.privateKeyPath = privPath1
+		} else {
+			return fmt.Errorf("not valid privateKeyPath value %v", privPath)
+		}
+	}
+
+	if rootPath, ok := props["rootCaPath"]; ok {
+		if rootPath1, ok1 := rootPath.(string); ok1 {
+			hps.rootCaPath = rootPath1
+		} else {
+			return fmt.Errorf("not valid rootCaPath value %v", rootPath)
 		}
 	}
 	hps.headers = make(map[string]string)
@@ -145,7 +173,7 @@ func (hps *HTTPPullSource) Configure(device string, props map[string]interface{}
 				}
 			}
 		} else {
-			return fmt.Errorf("Not valid header value %v.", h1)
+			return fmt.Errorf("not valid header value %v", h1)
 		}
 	}
 
@@ -159,8 +187,23 @@ func (hps *HTTPPullSource) Open(ctx api.StreamContext, consumer chan<- api.Sourc
 		errCh <- e
 		return
 	}
+	log := ctx.GetLogger()
+
+	tlsOpts := cert.TlsConfigurationOptions{
+		SkipCertVerify: hps.insecureSkipVerify,
+		CertFile:       hps.certificationPath,
+		KeyFile:        hps.privateKeyPath,
+		CaFile:         hps.rootCaPath,
+	}
+	log.Infof("Connect http source with TLS configs. %v", tlsOpts)
+	tlscfg, err := cert.GenerateTLSForClient(tlsOpts)
+	if err != nil {
+		errCh <- err
+		return
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: hps.insecureSkipVerify},
+		TLSClientConfig: tlscfg,
 	}
 
 	hps.client = &http.Client{

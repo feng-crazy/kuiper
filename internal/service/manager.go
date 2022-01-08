@@ -182,7 +182,7 @@ func (m *Manager) initFile(baseName string) error {
 
 // Start Implement FunctionFactory
 
-func (m *Manager) HasFunctionSet(name string) bool {
+func (m *Manager) HasFunctionSet(_ string) bool {
 	return false
 }
 
@@ -205,6 +205,11 @@ func (m *Manager) Function(name string) (api.Function, error) {
 		return nil, fmt.Errorf("fail to initiate the executor for %s: %v", f.InterfaceName, err)
 	}
 	return &ExternalFunc{exe: e, methodName: f.MethodName}, nil
+}
+
+func (m *Manager) ConvName(funcName string) (string, bool) {
+	_, ok := m.getFunction(funcName)
+	return funcName, ok
 }
 
 // End Implement FunctionFactory
@@ -370,11 +375,11 @@ func (m *Manager) unzip(name, src string) error {
 		return err
 	}
 	defer r.Close()
-	baseName := strings.ToLower(name + ".json")
+	baseName := name + ".json"
 	// Try unzip
 	found := false
 	for _, file := range r.File {
-		if strings.ToLower(file.Name) == baseName {
+		if strings.EqualFold(file.Name, baseName) {
 			found = true
 			break
 		}
